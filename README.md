@@ -4,8 +4,8 @@ API de reservas para bares y restaurantes, en .NET 10. Varios negocios en la mis
 disponibilidad por franjas, reservas con confirmación por correo y gestión del día a día
 del servicio.
 
-> En construcción: dominio, persistencia y API pública hechos; faltan la parte del personal,
-> los correos y el despliegue.
+> En construcción: dominio, persistencia, API pública y parte del personal hechos; faltan los
+> correos, las tareas programadas y el despliegue.
 
 ## El problema central
 
@@ -63,6 +63,33 @@ Los errores son `application/problem+json` con un `code` estable (`reserva.mesa_
 Repetir un `POST` con la misma clave devuelve la misma respuesta sin crear otra reserva
 ([ADR 0004](docs/adr/0004-idempotencia-de-las-peticiones.md)). El contrato completo está en
 `/openapi/v1.json`.
+
+## La parte del personal
+
+El personal del negocio inicia sesión y trabaja con su agenda. En desarrollo hay tres cuentas de
+demostración del negocio ficticio, todas con la contraseña `Demo-Reservas-2026`:
+`propietario@demo.example`, `encargado@demo.example` y `personal@demo.example`.
+
+```bash
+# Iniciar sesión: devuelve un access token (15 minutos) y un token de renovación (un solo uso)
+curl -X POST http://localhost:5052/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"personal@demo.example","contrasena":"Demo-Reservas-2026"}'
+
+# Ver la agenda de un día
+curl "http://localhost:5052/api/v1/gestion/agenda?fecha=2026-10-03" -H "Authorization: Bearer $TOKEN"
+```
+
+| Rol | Puede |
+|---|---|
+| **Personal** | Ver la agenda, apuntar reservas, sentar a un grupo, completarlo, darlo por no presentado o cancelar |
+| **Encargado** | Además, configurar salas, mesas, horarios y cierres |
+| **Propietario** | Además, dar de alta y baja a las personas del negocio |
+
+Cada negocio ve solo lo suyo, y esa garantía la dan dos defensas independientes (un filtro global de
+la base de datos y una comprobación en cada caso de uso): con el identificador de algo de otro
+negocio se recibe un 404, como si no existiera. Las sesiones, los roles y el aislamiento están
+explicados en el [ADR 0005](docs/adr/0005-sesion-del-personal-y-aislamiento-por-negocio.md).
 
 ## No reservar dos veces la misma mesa
 
