@@ -1,0 +1,32 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  calidad:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+      - name: Sin rutas locales ni correos personales
+        run: |
+          if git grep -nIiE '([a-z]:[\/]+users[\/]|/home/[a-z0-9_-]+/|@(gmail|hotmail|outlook|yahoo)\.)'; then
+            echo "Hay datos personales en el repositorio" && exit 1
+          fi
+      - name: Restaurar
+        run: dotnet restore Reservas.slnx
+      - name: Formato
+        run: dotnet format Reservas.slnx --verify-no-changes --no-restore
+      - name: Compilar (avisos como errores)
+        run: dotnet build Reservas.slnx --no-restore -c Release
+      # Los tests de integración usan Testcontainers: los runners de GitHub traen Docker.
+      - name: Tests
+        run: dotnet test --solution Reservas.slnx --no-build -c Release
