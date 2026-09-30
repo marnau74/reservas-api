@@ -13,6 +13,7 @@ using Reservas.Api.Contratos;
 using Reservas.Api.Endpoints;
 using Reservas.Api.Idempotencia;
 using Reservas.Api.Limites;
+using Reservas.Api.Seguridad;
 using Reservas.Api.Validacion;
 using Reservas.Aplicacion;
 using Reservas.Infraestructura;
@@ -24,16 +25,32 @@ var builder = WebApplication.CreateBuilder(args);
 builder.AddServiceDefaults();
 
 // PostgreSQL: la cadena de conexión «reservas» la inyecta Aspire en local y el entorno en
-// producción. La integración añade también reintentos, trazas y un health check de la base de datos.
-builder.AddNpgsqlDbContext<ReservasDbContext>("reservas", configureDbContextOptions: opciones => OpcionesReservas.Configurar(opciones));
+// producción. El contexto es uno por petición (no un «pool» de contextos reutilizados) porque lleva
+// el negocio de la sesión, y un contexto reutilizado podría arrastrar el de la petición anterior.
+// Enrich añade a ese contexto los reintentos, las trazas y el health check de la base de datos.
+builder.Services.AddDbContext<ReservasDbContext>((servicios, opciones) =>
+{
+    opciones.UseNpgsql(servicios.GetRequiredService<IConfiguration>().GetConnectionString("reservas"));
+    OpcionesReservas.Configurar(opciones);
+});
+builder.EnrichNpgsqlDbContext<ReservasDbContext>();
 
 builder.Services.TryAddSingleton(TimeProvider.System);
+builder.Services.AddSeguridad(builder.Configuration, builder.Environment.IsDevelopment());
 builder.Services.AddInfraestructura();
 builder.Services.AddAplicacion();
 
 builder.Services.Configure<OpcionesPublicas>(builder.Configuration.GetSection(OpcionesPublicas.Seccion));
 builder.Services.AddScoped<IValidator<SolicitudReservaDto>, ValidadorSolicitudReserva>();
 builder.Services.AddScoped<IValidator<ConsultaDisponibilidadDto>, ValidadorConsultaDisponibilidad>();
+builder.Services.AddScoped<IValidator<LoginDto>, ValidadorLogin>();
+builder.Services.AddScoped<IValidator<RefrescoDto>, ValidadorRefresco>();
+builder.Services.AddScoped<IValidator<CrearUsuarioDto>, ValidadorCrearUsuario>();
+builder.Services.AddScoped<IValidator<ConsultaAgendaDto>, ValidadorConsultaAgenda>();
+builder.Services.AddScoped<IValidator<CrearSalaDto>, ValidadorCrearSala>();
+builder.Services.AddScoped<IValidator<CrearMesaDto>, ValidadorCrearMesa>();
+builder.Services.AddScoped<IValidator<CrearHorarioDto>, ValidadorCrearHorario>();
+builder.Services.AddScoped<IValidator<CrearCierreDto>, ValidadorCrearCierre>();
 builder.Services.AddLimitesPeticiones(builder.Configuration);
 
 builder.Services.ConfigureHttpJsonOptions(opciones =>
@@ -72,6 +89,8 @@ if (builder.Configuration.GetValue<bool>("Proxy:ConfiarEnCabecerasReenviadas"))
 app.UseExceptionHandler();
 app.UseStatusCodePages();
 app.UseRateLimiter();
+app.UseAuthentication();
+app.UseAuthorization();
 app.UseMiddleware<IdempotenciaMiddleware>();
 
 if (app.Environment.IsDevelopment())
@@ -87,13 +106,14 @@ if (app.Environment.IsDevelopment())
     // Un negocio ficticio para poder probar la API a mano. Los tests lo desactivan para controlar sus datos.
     if (builder.Configuration.GetValue("Desarrollo:SembrarDatosDemo", true))
     {
-        await SembradorDemo.SembrarSiHaceFaltaAsync(db);
+        await SembradorDemo.SembrarSiHaceFaltaAsync(db, builder.Configuration["Desarrollo:ContrasenaDemo"] ?? SembradorDemo.ContrasenaDemoPorDefecto);
     }
 }
 
 // /health (listo para recibir tráfico) y /alive (el proceso responde).
 app.MapDefaultEndpoints();
 app.MapEndpointsPublicos();
+app.MapEndpointsPersonal();
 
 app.Run();
 

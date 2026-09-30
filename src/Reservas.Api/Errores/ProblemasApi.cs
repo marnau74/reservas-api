@@ -14,12 +14,26 @@ public static class ProblemasApi
 {
     private static readonly Dictionary<string, int> Estados = new()
     {
+        // No autenticado
+        ["auth.credenciales_invalidas"] = StatusCodes.Status401Unauthorized,
+        ["auth.token_invalido"] = StatusCodes.Status401Unauthorized,
+
         // No encontrado
         ["negocio.no_encontrado"] = StatusCodes.Status404NotFound,
         ["reserva.no_encontrada"] = StatusCodes.Status404NotFound,
+        ["usuario.no_encontrado"] = StatusCodes.Status404NotFound,
+        ["sala.no_encontrada"] = StatusCodes.Status404NotFound,
+        ["mesa.no_encontrada"] = StatusCodes.Status404NotFound,
+        ["horario.no_encontrado"] = StatusCodes.Status404NotFound,
+        ["cierre.no_encontrado"] = StatusCodes.Status404NotFound,
 
         // Conflicto: la petición era válida, pero el estado actual no la permite
         ["reserva.franja_no_disponible"] = StatusCodes.Status409Conflict,
+        ["usuario.email_en_uso"] = StatusCodes.Status409Conflict,
+        ["usuario.protegido"] = StatusCodes.Status409Conflict,
+        ["usuario.ya_desactivado"] = StatusCodes.Status409Conflict,
+        ["sala.con_mesas"] = StatusCodes.Status409Conflict,
+        ["mesa.con_reservas"] = StatusCodes.Status409Conflict,
         [ErroresReserva.MesaOcupada.Codigo] = StatusCodes.Status409Conflict,
         [ErroresReserva.ConflictoConcurrencia.Codigo] = StatusCodes.Status409Conflict,
         [ErroresReserva.TransicionInvalida.Codigo] = StatusCodes.Status409Conflict,
@@ -83,6 +97,7 @@ public static class ProblemasApi
     private static string Titulo(int estadoHttp) => estadoHttp switch
     {
         StatusCodes.Status400BadRequest => "Petición incorrecta",
+        StatusCodes.Status401Unauthorized => "No autenticado",
         StatusCodes.Status404NotFound => "No encontrado",
         StatusCodes.Status409Conflict => "Conflicto",
         StatusCodes.Status422UnprocessableEntity => "Petición no procesable",
