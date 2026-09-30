@@ -32,7 +32,7 @@ public static class SembradorDemo
     {
         ArgumentNullException.ThrowIfNull(db);
 
-        var negocio = Negocio.Crear(slug, $"Negocio {slug} (demo)", "Europe/Madrid", politicas ?? PoliticasReserva.PorDefecto).Valor;
+        var negocio = Negocio.Crear(slug, slug == SlugPorDefecto ? "Bar La Plaza (demo)" : $"Negocio {slug} (demo)", "Europe/Madrid", politicas ?? PoliticasReserva.PorDefecto).Valor;
         var sala = Sala.Crear("Sala principal").Valor;
 
         var mesasCreadas = (mesas ?? [(1, 2, false), (1, 4, false)])

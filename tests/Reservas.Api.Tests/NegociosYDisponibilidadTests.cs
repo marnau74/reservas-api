@@ -18,7 +18,7 @@ public class NegociosYDisponibilidadTests(ApiConBaseDeDatos api) : PruebaApi(api
 
         respuesta.StatusCode.ShouldBe(HttpStatusCode.OK);
         var negocio = await respuesta.Content.ReadFromJsonAsync<NegocioRespuesta>(Cancelacion);
-        negocio.ShouldBe(new NegocioRespuesta("bar-la-plaza", "Negocio bar-la-plaza (demo)", "Europe/Madrid", 10, 60));
+        negocio.ShouldBe(new NegocioRespuesta("bar-la-plaza", "Bar La Plaza (demo)", "Europe/Madrid", 10, 60));
     }
 
     [Fact]
