@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 
 using Reservas.Dominio.Locales;
 using Reservas.Dominio.Negocios;
+using Reservas.Dominio.Personal;
 
 namespace Reservas.Infraestructura.Persistencia;
 
@@ -60,14 +61,53 @@ public static class SembradorDemo
         return new NegocioDemo(negocio, sala, mesasCreadas);
     }
 
-    /// <summary>Crea el negocio de demostración por defecto si todavía no existe. Se puede llamar en cada arranque.</summary>
-    public static async Task SembrarSiHaceFaltaAsync(ReservasDbContext db)
+    /// <summary>Contraseña de las cuentas de demostración en desarrollo. Ficticia, como todo lo demás: solo existe en local.</summary>
+    public const string ContrasenaDemoPorDefecto = "Demo-Reservas-2026";
+
+    /// <summary>Correos de las cuentas de demostración del negocio por defecto (propietario, encargado y personal).</summary>
+    public static readonly (string Email, string Nombre, Rol Rol)[] CuentasDemo =
+    [
+        ("propietario@demo.example", "Propietaria (demo)", Rol.Propietario),
+        ("encargado@demo.example", "Encargado (demo)", Rol.Encargado),
+        ("personal@demo.example", "Camarera (demo)", Rol.Personal),
+    ];
+
+    /// <summary>Guarda un usuario de un negocio con la contraseña indicada.</summary>
+    public static async Task<Usuario> CrearUsuarioAsync(
+        ReservasDbContext db,
+        Guid negocioId,
+        string email,
+        string nombre,
+        Rol rol,
+        string contrasena,
+        DateTimeOffset? creadoEn = null)
     {
         ArgumentNullException.ThrowIfNull(db);
 
-        if (!await db.Negocios.AnyAsync(negocio => negocio.Slug == SlugPorDefecto))
+        var usuario = Usuario.Crear(negocioId, email, nombre, rol, new HasherContrasenas().Hashear(contrasena), creadoEn ?? DateTimeOffset.UtcNow).Valor;
+        db.Usuarios.Add(usuario);
+        await db.SaveChangesAsync();
+
+        return usuario;
+    }
+
+    /// <summary>
+    /// Crea el negocio de demostración por defecto y sus tres cuentas si todavía no existen. Se puede
+    /// llamar en cada arranque: solo añade lo que falta.
+    /// </summary>
+    public static async Task SembrarSiHaceFaltaAsync(ReservasDbContext db, string contrasena = ContrasenaDemoPorDefecto)
+    {
+        ArgumentNullException.ThrowIfNull(db);
+
+        var negocio = await db.Negocios.FirstOrDefaultAsync(n => n.Slug == SlugPorDefecto);
+        negocio ??= (await CrearNegocioAsync(db)).Negocio;
+
+        if (!await db.Usuarios.IgnoreQueryFilters().AnyAsync(u => u.NegocioId == negocio.Id))
         {
-            await CrearNegocioAsync(db);
+            foreach (var (email, nombre, rol) in CuentasDemo)
+            {
+                await CrearUsuarioAsync(db, negocio.Id, email, nombre, rol, contrasena);
+            }
         }
     }
 }

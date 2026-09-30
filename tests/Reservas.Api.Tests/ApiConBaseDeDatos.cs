@@ -45,10 +45,15 @@ public class ApiConBaseDeDatos(ServidorPostgres servidor) : IAsyncLifetime
         ["Limites:Lectura:VentanaSegundos"] = "60",
         ["Limites:Escritura:Permisos"] = "100000",
         ["Limites:Escritura:VentanaSegundos"] = "60",
+        ["Limites:Autenticacion:Permisos"] = "100000",
+        ["Limites:Autenticacion:VentanaSegundos"] = "60",
     };
 
     public HttpClient CrearCliente() =>
         (_fabrica ?? throw new InvalidOperationException("La API no está iniciada.")).CreateClient();
+
+    /// <summary>Los servicios de la API en marcha, para inspeccionar cómo está configurada.</summary>
+    public IServiceProvider Servicios => (_fabrica ?? throw new InvalidOperationException("La API no está iniciada.")).Services;
 
     public ReservasDbContext NuevoContexto() => ServidorPostgres.CrearContexto(CadenaConexion);
 

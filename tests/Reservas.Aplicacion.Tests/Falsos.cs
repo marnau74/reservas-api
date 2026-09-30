@@ -84,6 +84,14 @@ internal sealed class RepositorioReservasFalso : IRepositorioReservas
         return Task.FromResult(Resultado.Exito());
     }
 
+    public Task<IReadOnlyList<Reserva>> ListarPorInicioAsync(Guid negocioId, IntervaloTiempo tramo, CancellationToken cancellationToken)
+    {
+        IReadOnlyList<Reserva> lista = [.. _reservas
+            .Where(r => r.NegocioId == negocioId && r.Intervalo.Inicio >= tramo.Inicio && r.Intervalo.Inicio < tramo.Fin)
+            .OrderBy(r => r.Intervalo.Inicio)];
+        return Task.FromResult(lista);
+    }
+
     public Task<IReadOnlyList<OcupacionMesa>> ObtenerOcupacionesAsync(Guid negocioId, IntervaloTiempo ventana, CancellationToken cancellationToken)
     {
         IReadOnlyList<OcupacionMesa> activas = [.. _ocupaciones.Where(o => o.Intervalo.Solapa(ventana))];

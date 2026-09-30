@@ -21,20 +21,13 @@ public sealed record SolicitudCrearReserva(
     string Email,
     string? Telefono);
 
-/// <summary>
-/// Crea una reserva del público en la franja pedida. Si mientras tanto otra petición se queda con
-/// la mesa elegida, vuelve a calcular la disponibilidad y prueba con otra mesa libre a esa hora
-/// antes de rendirse: dos peticiones simultáneas para la misma hora no deberían fallar si hay
-/// mesa para las dos.
-/// </summary>
+/// <summary>Crea una reserva del público en la franja pedida; queda pendiente de que el cliente la confirme.</summary>
 public sealed class CrearReserva(
     IRepositorioNegocios negocios,
     ServicioDisponibilidad disponibilidad,
     IRepositorioReservas reservas,
     TimeProvider reloj)
 {
-    private const int MaximoIntentos = 3;
-
     public async Task<Resultado<ReservaConNegocio>> EjecutarAsync(SolicitudCrearReserva solicitud, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(solicitud);
@@ -51,46 +44,7 @@ public sealed class CrearReserva(
             return Resultado.Fallo<ReservaConNegocio>(cliente.Error);
         }
 
-        for (var intento = 1; intento <= MaximoIntentos; intento++)
-        {
-            var ahora = reloj.GetUtcNow();
-            var franjas = await disponibilidad.CalcularAsync(
-                negocio, solicitud.Fecha, solicitud.Comensales, OrigenReserva.Publica, ahora, cancellationToken);
-
-            if (franjas.EsFallo)
-            {
-                return Resultado.Fallo<ReservaConNegocio>(franjas.Error);
-            }
-
-            var franja = franjas.Valor.FirstOrDefault(f => f.HoraLocal == solicitud.Hora);
-            if (franja is null)
-            {
-                return Resultado.Fallo<ReservaConNegocio>(ErroresAplicacion.FranjaNoDisponible);
-            }
-
-            var reserva = Reserva.Crear(
-                negocio.Id, franja.Intervalo, solicitud.Comensales, cliente.Valor, franja.MesaIds, OrigenReserva.Publica, ahora);
-
-            if (reserva.EsFallo)
-            {
-                return Resultado.Fallo<ReservaConNegocio>(reserva.Error);
-            }
-
-            var guardada = await reservas.AgregarAsync(reserva.Valor, cancellationToken);
-
-            if (guardada.EsExito)
-            {
-                return Resultado.Exito(new ReservaConNegocio(reserva.Valor, negocio));
-            }
-
-            if (guardada.Error != ErroresReserva.MesaOcupada)
-            {
-                return Resultado.Fallo<ReservaConNegocio>(guardada.Error);
-            }
-
-            // Otra petición se quedó con la mesa entre el cálculo y el guardado: se recalcula.
-        }
-
-        return Resultado.Fallo<ReservaConNegocio>(ErroresAplicacion.FranjaNoDisponible);
+        return await new CreadorReservas(disponibilidad, reservas, reloj).CrearAsync(
+            negocio, solicitud.Fecha, solicitud.Hora, solicitud.Comensales, cliente.Valor, OrigenReserva.Publica, cancellationToken);
     }
 }

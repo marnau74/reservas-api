@@ -18,6 +18,10 @@ public static class ServiciosInfraestructura
         servicios.AddScoped<IRepositorioReservas, RepositorioReservas>();
         servicios.AddScoped<IRepositorioNegocios, RepositorioNegocios>();
         servicios.AddScoped<IAlmacenIdempotencia, AlmacenIdempotencia>();
+        servicios.AddScoped<IRepositorioUsuarios, RepositorioUsuarios>();
+        servicios.AddScoped<IRepositorioTokensRefresco, RepositorioTokensRefresco>();
+        servicios.AddScoped<IRepositorioLocal, RepositorioLocal>();
+        servicios.AddSingleton<IHasherContrasenas, HasherContrasenas>();
 
         return servicios;
     }

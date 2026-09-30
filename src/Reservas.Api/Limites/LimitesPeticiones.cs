@@ -20,8 +20,12 @@ public static class LimitesPeticiones
     public const string Lectura = "lectura";
     public const string Escritura = "escritura";
 
+    /// <summary>Inicio de sesión y renovación: más estricta, para frenar la fuerza bruta sobre contraseñas.</summary>
+    public const string Autenticacion = "autenticacion";
+
     private static readonly OpcionesLimite LecturaPorDefecto = new(Permisos: 120, VentanaSegundos: 60);
     private static readonly OpcionesLimite EscrituraPorDefecto = new(Permisos: 20, VentanaSegundos: 60);
+    private static readonly OpcionesLimite AutenticacionPorDefecto = new(Permisos: 10, VentanaSegundos: 60);
 
     public static IServiceCollection AddLimitesPeticiones(this IServiceCollection servicios, IConfiguration configuracion)
     {
@@ -31,11 +35,14 @@ public static class LimitesPeticiones
         var lectura = configuracion.GetSection("Limites:Lectura").Get<OpcionesLimite>() ?? LecturaPorDefecto;
         var escritura = configuracion.GetSection("Limites:Escritura").Get<OpcionesLimite>() ?? EscrituraPorDefecto;
 
+        var autenticacion = configuracion.GetSection("Limites:Autenticacion").Get<OpcionesLimite>() ?? AutenticacionPorDefecto;
+
         servicios.AddRateLimiter(opciones =>
         {
             opciones.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
             opciones.AddPolicy(Lectura, contexto => Particion(contexto, Lectura, lectura));
             opciones.AddPolicy(Escritura, contexto => Particion(contexto, Escritura, escritura));
+            opciones.AddPolicy(Autenticacion, contexto => Particion(contexto, Autenticacion, autenticacion));
             opciones.OnRejected = RechazarAsync;
         });
 

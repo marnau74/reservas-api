@@ -271,6 +271,115 @@ namespace Reservas.Infraestructura.Persistencia.Migraciones
                     b.ToTable("negocios", (string)null);
                 });
 
+            modelBuilder.Entity("Reservas.Dominio.Personal.TokenRefresco", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreadoEn")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("creado_en");
+
+                    b.Property<DateTimeOffset>("ExpiraEn")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expira_en");
+
+                    b.Property<string>("HashToken")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("hash_token");
+
+                    b.Property<DateTimeOffset?>("RevocadoEn")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("revocado_en");
+
+                    b.Property<Guid>("UsuarioId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("usuario_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_tokens_refresco");
+
+                    b.HasIndex("ExpiraEn")
+                        .HasDatabaseName("ix_tokens_refresco_expira_en");
+
+                    b.HasIndex("HashToken")
+                        .IsUnique()
+                        .HasDatabaseName("ix_tokens_refresco_hash_token");
+
+                    b.HasIndex("UsuarioId")
+                        .HasDatabaseName("ix_tokens_refresco_usuario_id");
+
+                    b.ToTable("tokens_refresco", (string)null);
+                });
+
+            modelBuilder.Entity("Reservas.Dominio.Personal.Usuario", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<bool>("Activo")
+                        .HasColumnType("boolean")
+                        .HasColumnName("activo");
+
+                    b.Property<DateTimeOffset?>("BloqueadoHasta")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("bloqueado_hasta");
+
+                    b.Property<DateTimeOffset>("CreadoEn")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("creado_en");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(254)
+                        .HasColumnType("character varying(254)")
+                        .HasColumnName("email");
+
+                    b.Property<string>("HashContrasena")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("hash_contrasena");
+
+                    b.Property<int>("IntentosFallidos")
+                        .HasColumnType("integer")
+                        .HasColumnName("intentos_fallidos");
+
+                    b.Property<Guid>("NegocioId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("negocio_id");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("nombre");
+
+                    b.Property<string>("Rol")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("rol");
+
+                    b.HasKey("Id")
+                        .HasName("pk_usuarios");
+
+                    b.HasIndex("Email")
+                        .IsUnique()
+                        .HasDatabaseName("ix_usuarios_email");
+
+                    b.HasIndex("NegocioId")
+                        .HasDatabaseName("ix_usuarios_negocio_id");
+
+                    b.ToTable("usuarios", (string)null);
+                });
+
             modelBuilder.Entity("Reservas.Infraestructura.Persistencia.ClaveIdempotenciaEntidad", b =>
                 {
                     b.Property<string>("Clave")
@@ -484,6 +593,26 @@ namespace Reservas.Infraestructura.Persistencia.Migraciones
 
                     b.Navigation("Politicas")
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("Reservas.Dominio.Personal.TokenRefresco", b =>
+                {
+                    b.HasOne("Reservas.Dominio.Personal.Usuario", null)
+                        .WithMany()
+                        .HasForeignKey("UsuarioId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_tokens_refresco_usuarios_usuario_id");
+                });
+
+            modelBuilder.Entity("Reservas.Dominio.Personal.Usuario", b =>
+                {
+                    b.HasOne("Reservas.Dominio.Negocios.Negocio", null)
+                        .WithMany()
+                        .HasForeignKey("NegocioId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_usuarios_negocios_negocio_id");
                 });
 
             modelBuilder.Entity("Reservas.Infraestructura.Persistencia.OcupacionMesaEntidad", b =>

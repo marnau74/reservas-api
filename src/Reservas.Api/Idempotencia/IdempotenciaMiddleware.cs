@@ -54,7 +54,7 @@ public sealed partial class IdempotenciaMiddleware(RequestDelegate siguiente)
             return;
         }
 
-        var huella = await CalcularHuellaAsync(contexto.Request);
+        var huella = await CalcularHuellaAsync(contexto);
         var adquisicion = await almacen.AdquirirAsync(clave, huella, reloj.GetUtcNow(), contexto.RequestAborted);
 
         switch (adquisicion.Estado)
@@ -137,16 +137,21 @@ public sealed partial class IdempotenciaMiddleware(RequestDelegate siguiente)
     private static Task Rechazar(HttpContext contexto, int estado, Reservas.Dominio.Comun.ErrorDominio error) =>
         ProblemasApi.Crear(estado, error.Codigo, error.Mensaje).ExecuteAsync(contexto);
 
-    /// <summary>SHA-256 del método, la ruta y el cuerpo: identifica «esta misma petición».</summary>
-    private static async Task<string> CalcularHuellaAsync(HttpRequest peticion)
+    /// <summary>
+    /// SHA-256 del método, la ruta, quién la hace y el cuerpo: identifica «esta misma petición». Incluir
+    /// a la persona autenticada impide que otra reutilice la clave y reciba la respuesta guardada.
+    /// </summary>
+    private static async Task<string> CalcularHuellaAsync(HttpContext contexto)
     {
+        var peticion = contexto.Request;
+        var autor = contexto.User.FindFirst("sub")?.Value ?? string.Empty;
         peticion.EnableBuffering();
 
         using var memoria = new MemoryStream();
         await peticion.Body.CopyToAsync(memoria);
         peticion.Body.Position = 0;
 
-        var cabecera = Encoding.UTF8.GetBytes($"{peticion.Method}\n{peticion.Path}\n");
+        var cabecera = Encoding.UTF8.GetBytes($"{peticion.Method}\n{peticion.Path}\n{autor}\n");
         var contenido = new byte[cabecera.Length + memoria.Length];
         cabecera.CopyTo(contenido, 0);
         memoria.ToArray().CopyTo(contenido, cabecera.Length);

@@ -35,6 +35,9 @@ public interface IRepositorioReservas
     /// </summary>
     Task<Resultado> ActualizarAsync(Reserva reserva, CancellationToken cancellationToken);
 
+    /// <summary>Todas las reservas de un negocio cuyo inicio cae en el tramo, por orden de hora (sin seguimiento: solo lectura).</summary>
+    Task<IReadOnlyList<Reserva>> ListarPorInicioAsync(Guid negocioId, IntervaloTiempo tramo, CancellationToken cancellationToken);
+
     /// <summary>Mesas ocupadas por reservas activas de un negocio en un tramo de tiempo.</summary>
     Task<IReadOnlyList<OcupacionMesa>> ObtenerOcupacionesAsync(
         Guid negocioId,

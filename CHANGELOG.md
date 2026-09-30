@@ -6,6 +6,30 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 ## [Sin publicar]
 
 ### Añadido
+- Parte privada de la API para el personal del negocio: agenda del día, reservas apuntadas por
+  teléfono o en persona (nacen confirmadas), y llegada, completar, no presentada y cancelar.
+- Configuración del local por su encargado (salas, mesas, horarios y cierres) y gestión de usuarios
+  por su propietario.
+- Sesiones con access token JWT de 15 minutos y token de renovación de un solo uso: reutilizar uno
+  ya gastado cierra todas las sesiones de esa persona. Contraseñas con el hasher de ASP.NET Core
+  Identity y bloqueo de la cuenta tras 5 fallos seguidos (ADR 0005).
+- Tres roles acumulativos (personal, encargado, propietario) con políticas de autorización.
+- Aislamiento entre negocios con dos defensas independientes: filtro global de EF Core por
+  `negocio_id` y comprobación explícita en los casos de uso. Un identificador de otro negocio da 404.
+- Límite de peticiones más estricto para el inicio de sesión y la renovación.
+- Cuentas de demostración en desarrollo (propietario, encargado y personal del negocio ficticio).
+- Tests: dominio de usuarios, filtro por negocio contra PostgreSQL, consumo atómico de tokens con 20
+  peticiones a la vez, flujos de autenticación, autorización por rol y aislamiento entre dos
+  negocios, y un test que recorre todas las rutas de la API para que ninguna de la parte privada se
+  quede sin sesión ni sin límite de peticiones.
+
+### Cambiado
+- La huella de una petición idempotente incluye ahora quién la hace: otra persona no puede reutilizar
+  una clave ajena para leer la respuesta guardada.
+- El contexto de base de datos es uno por petición en lugar de un *pool* de contextos reutilizados,
+  porque lleva el negocio de la sesión.
+- Se omite `PATCH` de reservas, previsto en la guía: una reserva es inmutable y se corrige
+  cancelándola y apuntando otra.
 - API pública con contrato OpenAPI: datos de un negocio, disponibilidad de un día para un grupo,
   crear una reserva y consultarla, confirmarla o cancelarla con el código secreto de su enlace.
 - Casos de uso en la capa de aplicación, sin librerías de mediadores. Al reservar, si otra

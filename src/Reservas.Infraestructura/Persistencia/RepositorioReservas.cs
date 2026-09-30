@@ -94,6 +94,27 @@ public sealed class RepositorioReservas(ReservasDbContext db) : IRepositorioRese
         }
     }
 
+    public async Task<IReadOnlyList<Reserva>> ListarPorInicioAsync(Guid negocioId, IntervaloTiempo tramo, CancellationToken cancellationToken)
+    {
+        var rango = PeriodoPostgres.Desde(tramo);
+
+        // El tramo de una reserva se guarda como un valor convertido que PostgreSQL no puede
+        // comparar por dentro, pero cada mesa ocupada lleva su propio rango (tstzrange, con índice):
+        // se buscan por ahí las reservas que tocan el tramo y luego se afina por hora de inicio.
+        var idsDelTramo = db.OcupacionesMesa
+            .Where(ocupacion => ocupacion.NegocioId == negocioId && ocupacion.Periodo.Overlaps(rango))
+            .Select(ocupacion => ocupacion.ReservaId);
+
+        var candidatas = await db.Reservas
+            .AsNoTracking()
+            .Where(reserva => idsDelTramo.Contains(reserva.Id))
+            .ToListAsync(cancellationToken);
+
+        return [.. candidatas
+            .Where(reserva => reserva.Intervalo.Inicio >= tramo.Inicio && reserva.Intervalo.Inicio < tramo.Fin)
+            .OrderBy(reserva => reserva.Intervalo.Inicio)];
+    }
+
     public async Task<IReadOnlyList<OcupacionMesa>> ObtenerOcupacionesAsync(
         Guid negocioId,
         IntervaloTiempo ventana,

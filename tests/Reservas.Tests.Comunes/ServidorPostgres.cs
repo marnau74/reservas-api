@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 
 using Npgsql;
 
+using Reservas.Aplicacion.Abstracciones;
 using Reservas.Infraestructura.Persistencia;
 
 using Testcontainers.PostgreSql;
@@ -58,13 +59,16 @@ public sealed class ServidorPostgres : IAsyncDisposable
         return new NpgsqlConnectionStringBuilder(administrador) { Database = nombre, Pooling = false }.ConnectionString;
     }
 
-    /// <summary>Un contexto nuevo sobre la base de datos indicada (cada uno es una unidad de trabajo independiente).</summary>
-    public static ReservasDbContext CrearContexto(string cadenaConexion)
+    /// <summary>
+    /// Un contexto nuevo sobre la base de datos indicada (cada uno es una unidad de trabajo independiente).
+    /// Con <paramref name="contexto"/>, se comporta como en la petición de una persona de ese negocio.
+    /// </summary>
+    public static ReservasDbContext CrearContexto(string cadenaConexion, IContextoNegocio? contexto = null)
     {
         var opciones = new DbContextOptionsBuilder<ReservasDbContext>().UseNpgsql(cadenaConexion);
         OpcionesReservas.Configurar(opciones);
 
-        return new ReservasDbContext(opciones.Options);
+        return new ReservasDbContext(opciones.Options, contexto);
     }
 
     public async ValueTask DisposeAsync()
