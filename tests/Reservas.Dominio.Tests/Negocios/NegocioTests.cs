@@ -45,6 +45,26 @@ public class NegocioTests
     }
 
     [Fact]
+    public void Cada_negocio_tiene_su_propia_copia_de_las_politicas()
+    {
+        var compartidas = PoliticasReserva.PorDefecto;
+
+        var uno = Negocio.Crear("bar-uno", "Uno", "Europe/Madrid", compartidas).Valor;
+        var otro = Negocio.Crear("bar-otro", "Otro", "Europe/Madrid", compartidas).Valor;
+
+        // Iguales en valores, pero objetos distintos: al guardarlos, EF Core no admite compartir uno.
+        uno.Politicas.ShouldBe(otro.Politicas);
+        uno.Politicas.ShouldNotBeSameAs(otro.Politicas);
+        uno.Politicas.ShouldNotBeSameAs(compartidas);
+    }
+
+    [Fact]
+    public void Las_politicas_por_defecto_son_una_instancia_nueva_cada_vez()
+    {
+        PoliticasReserva.PorDefecto.ShouldNotBeSameAs(PoliticasReserva.PorDefecto);
+    }
+
+    [Fact]
     public void El_nombre_no_puede_superar_los_cien_caracteres()
     {
         var resultado = Negocio.Crear("bar-la-plaza", new string('a', 101), "Europe/Madrid", PoliticasReserva.PorDefecto);

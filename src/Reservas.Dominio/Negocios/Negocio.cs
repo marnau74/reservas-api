@@ -55,7 +55,7 @@ public sealed partial class Negocio
 
         return zona.EsFallo
             ? Resultado.Fallo<Negocio>(zona.Error)
-            : Resultado.Exito(new Negocio(Guid.NewGuid(), slug, nombre.Trim(), zona.Valor, politicas));
+            : Resultado.Exito(new Negocio(Guid.NewGuid(), slug, nombre.Trim(), zona.Valor, politicas with { })); // copia: no se comparte con otro negocio
     }
 
     [GeneratedRegex("^[a-z0-9]+(-[a-z0-9]+)*$", RegexOptions.CultureInvariant)]
