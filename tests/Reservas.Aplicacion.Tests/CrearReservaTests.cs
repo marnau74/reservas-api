@@ -178,6 +178,11 @@ public class CrearReservaTests
         public Task<Reserva?> ObtenerPorCodigoAsync(string codigoGestion, CancellationToken cancellationToken) =>
             _interno.ObtenerPorCodigoAsync(codigoGestion, cancellationToken);
 
+        public Task<IReadOnlyList<Reserva>> ListarPorInicioAsync(
+            Guid negocioId,
+            Reservas.Dominio.Comun.IntervaloTiempo tramo,
+            CancellationToken cancellationToken) => _interno.ListarPorInicioAsync(negocioId, tramo, cancellationToken);
+
         public Task<Reservas.Dominio.Comun.Resultado> ActualizarAsync(Reserva reserva, CancellationToken cancellationToken) =>
             _interno.ActualizarAsync(reserva, cancellationToken);
 
