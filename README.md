@@ -12,6 +12,21 @@ Dos personas no pueden reservar la misma mesa a la misma hora, aunque lleguen a 
 La garantía no está solo en el código: la da PostgreSQL con una restricción de exclusión
 sobre los intervalos de cada mesa, y un test lanza reservas simultáneas para demostrarlo.
 
+## Lo que hay hecho
+
+El **dominio**, que es donde vive la lógica de negocio y no depende de ningún framework:
+
+- **Reservas con estados:** pendiente → confirmada → sentada → completada, o cancelada / no
+  presentada. Las transiciones son métodos de la propia reserva y devuelven un resultado, no
+  lanzan excepciones ([ADR 0001](docs/adr/0001-resultado-en-lugar-de-excepciones.md)).
+- **Disponibilidad:** qué horas se pueden reservar un día para un grupo, aplicando cierres,
+  antelación mínima y máxima, límite de comensales online y las mesas ya ocupadas.
+- **Asignación de mesas:** la más ajustada al grupo; si no cabe en ninguna, la combinación
+  de menos mesas de una misma sala.
+- **Cambios de hora:** el 29 de marzo no existen las 02:30 y el 25 de octubre ocurren dos
+  veces; el dominio decide qué hacer y los tests lo demuestran
+  ([ADR 0002](docs/adr/0002-tiempo-utc-y-hora-local.md)).
+
 ## Stack
 
 .NET 10 · ASP.NET Core (minimal APIs) · EF Core · PostgreSQL · .NET Aspire · OpenTelemetry ·
