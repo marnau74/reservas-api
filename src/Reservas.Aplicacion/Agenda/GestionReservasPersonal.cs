@@ -1,7 +1,9 @@
 using Reservas.Aplicacion.Abstracciones;
+using Reservas.Aplicacion.Correos;
 using Reservas.Aplicacion.Disponibilidad;
 using Reservas.Aplicacion.ReservasPublicas;
 using Reservas.Dominio.Comun;
+using Reservas.Dominio.Correos;
 using Reservas.Dominio.Gestion;
 using Reservas.Dominio.Locales;
 using Reservas.Dominio.Negocios;
@@ -24,6 +26,7 @@ public sealed class GestionReservasPersonal(
     IRepositorioNegocios negocios,
     IRepositorioReservas reservas,
     ServicioDisponibilidad disponibilidad,
+    OpcionesCorreo opcionesCorreo,
     TimeProvider reloj)
 {
     public async Task<Resultado<AgendaDia>> ObtenerAgendaAsync(Guid negocioId, DateOnly fecha, CancellationToken cancellationToken)
@@ -61,29 +64,30 @@ public sealed class GestionReservasPersonal(
             return Resultado.Fallo<ReservaConNegocio>(cliente.Error);
         }
 
-        return await new CreadorReservas(disponibilidad, reservas, reloj).CrearAsync(
+        return await new CreadorReservas(disponibilidad, reservas, opcionesCorreo, reloj).CrearAsync(
             negocio, solicitud.Fecha, solicitud.Hora, solicitud.Comensales, cliente.Valor, OrigenReserva.Personal, cancellationToken);
     }
 
     public Task<Resultado<ReservaConNegocio>> CancelarAsync(Guid negocioId, Guid reservaId, CancellationToken cancellationToken) =>
-        CambiarAsync(negocioId, reservaId, reserva => reserva.Cancelar(), cancellationToken);
+        CambiarAsync(negocioId, reservaId, reserva => reserva.Cancelar(), TipoCorreo.Cancelacion, cancellationToken);
 
     /// <summary>El grupo ha llegado y se sienta a la mesa.</summary>
     public Task<Resultado<ReservaConNegocio>> SentarAsync(Guid negocioId, Guid reservaId, CancellationToken cancellationToken) =>
-        CambiarAsync(negocioId, reservaId, reserva => reserva.Sentar(), cancellationToken);
+        CambiarAsync(negocioId, reservaId, reserva => reserva.Sentar(), null, cancellationToken);
 
     /// <summary>El grupo ha terminado y la mesa queda libre.</summary>
     public Task<Resultado<ReservaConNegocio>> CompletarAsync(Guid negocioId, Guid reservaId, CancellationToken cancellationToken) =>
-        CambiarAsync(negocioId, reservaId, reserva => reserva.Completar(), cancellationToken);
+        CambiarAsync(negocioId, reservaId, reserva => reserva.Completar(), null, cancellationToken);
 
     /// <summary>El grupo no ha aparecido pasado el margen de cortesía: la mesa se libera.</summary>
     public Task<Resultado<ReservaConNegocio>> MarcarNoPresentadaAsync(Guid negocioId, Guid reservaId, CancellationToken cancellationToken) =>
-        CambiarAsync(negocioId, reservaId, reserva => reserva.MarcarNoPresentada(reloj.GetUtcNow()), cancellationToken);
+        CambiarAsync(negocioId, reservaId, reserva => reserva.MarcarNoPresentada(reloj.GetUtcNow()), null, cancellationToken);
 
     private async Task<Resultado<ReservaConNegocio>> CambiarAsync(
         Guid negocioId,
         Guid reservaId,
         Func<Reserva, Resultado> transicion,
+        TipoCorreo? correo,
         CancellationToken cancellationToken)
     {
         var reserva = await reservas.ObtenerAsync(reservaId, cancellationToken);
@@ -95,7 +99,8 @@ public sealed class GestionReservasPersonal(
             return Resultado.Fallo<ReservaConNegocio>(ErroresAplicacion.ReservaNoEncontrada);
         }
 
-        return await Componer.TrasCambioAsync(reserva, transicion(reserva), reservas, negocios, cancellationToken);
+        return await Componer.TrasCambioAsync(
+            reserva, transicion(reserva), reservas, negocios, correo, opcionesCorreo, reloj.GetUtcNow(), cancellationToken);
     }
 
     /// <summary>Instante UTC en que empieza un día local (si la medianoche no existe por un cambio de hora, la primera hora que sí).</summary>

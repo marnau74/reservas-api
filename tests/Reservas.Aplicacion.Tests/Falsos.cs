@@ -1,5 +1,6 @@
 using Reservas.Aplicacion.Abstracciones;
 using Reservas.Dominio.Comun;
+using Reservas.Dominio.Correos;
 using Reservas.Dominio.Disponibilidad;
 using Reservas.Dominio.Gestion;
 using Reservas.Dominio.Locales;
@@ -46,13 +47,16 @@ internal sealed class RepositorioReservasFalso : IRepositorioReservas
 
     public IReadOnlyList<Reserva> Reservas => _reservas;
 
+    /// <summary>Los correos que se guardaron junto a las reservas, en orden.</summary>
+    public List<CorreoPendiente> Correos { get; } = [];
+
     public void Sembrar(Reserva reserva)
     {
         _reservas.Add(reserva);
         _ocupaciones.AddRange(reserva.MesaIds.Select(mesa => new OcupacionMesa(mesa, reserva.Intervalo)));
     }
 
-    public Task<Resultado> AgregarAsync(Reserva reserva, CancellationToken cancellationToken)
+    public Task<Resultado> AgregarAsync(Reserva reserva, IReadOnlyCollection<CorreoPendiente> correos, CancellationToken cancellationToken)
     {
         IntentosDeAgregar++;
 
@@ -69,6 +73,7 @@ internal sealed class RepositorioReservasFalso : IRepositorioReservas
         }
 
         Sembrar(reserva);
+        Correos.AddRange(correos);
         return Task.FromResult(Resultado.Exito());
     }
 
@@ -78,9 +83,10 @@ internal sealed class RepositorioReservasFalso : IRepositorioReservas
     public Task<Reserva?> ObtenerPorCodigoAsync(string codigoGestion, CancellationToken cancellationToken) =>
         Task.FromResult(_reservas.FirstOrDefault(r => r.CodigoGestion == codigoGestion));
 
-    public Task<Resultado> ActualizarAsync(Reserva reserva, CancellationToken cancellationToken)
+    public Task<Resultado> ActualizarAsync(Reserva reserva, IReadOnlyCollection<CorreoPendiente> correos, CancellationToken cancellationToken)
     {
         Actualizaciones++;
+        Correos.AddRange(correos);
         return Task.FromResult(Resultado.Exito());
     }
 
@@ -89,6 +95,27 @@ internal sealed class RepositorioReservasFalso : IRepositorioReservas
         IReadOnlyList<Reserva> lista = [.. _reservas
             .Where(r => r.NegocioId == negocioId && r.Intervalo.Inicio >= tramo.Inicio && r.Intervalo.Inicio < tramo.Fin)
             .OrderBy(r => r.Intervalo.Inicio)];
+        return Task.FromResult(lista);
+    }
+
+    public Task<IReadOnlyList<Reserva>> ListarPendientesCaducadasAsync(DateTimeOffset ahora, int maximo, CancellationToken cancellationToken)
+    {
+        IReadOnlyList<Reserva> lista = [.. _reservas.Where(r => r.Estado == EstadoReserva.Pendiente && r.CaducaEn <= ahora).Take(maximo)];
+        return Task.FromResult(lista);
+    }
+
+    public Task<IReadOnlyList<Reserva>> ListarParaRecordatorioAsync(IntervaloTiempo tramo, int maximo, CancellationToken cancellationToken)
+    {
+        IReadOnlyList<Reserva> lista = [.. _reservas
+            .Where(r => r.Estado == EstadoReserva.Confirmada && !r.RecordatorioProgramado
+                && r.Intervalo.Inicio >= tramo.Inicio && r.Intervalo.Inicio <= tramo.Fin)
+            .Take(maximo)];
+        return Task.FromResult(lista);
+    }
+
+    public Task<IReadOnlyList<Reserva>> ListarAnonimizablesAsync(DateTimeOffset creadasAntesDe, int maximo, CancellationToken cancellationToken)
+    {
+        IReadOnlyList<Reserva> lista = [.. _reservas.Where(r => !r.OcupaMesas && r.CreadaEn < creadasAntesDe && !r.Cliente.EstaAnonimizado).Take(maximo)];
         return Task.FromResult(lista);
     }
 

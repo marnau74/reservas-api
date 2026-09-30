@@ -1,6 +1,8 @@
 using Reservas.Aplicacion.Abstracciones;
+using Reservas.Aplicacion.Correos;
 using Reservas.Aplicacion.Disponibilidad;
 using Reservas.Dominio.Comun;
+using Reservas.Dominio.Correos;
 using Reservas.Dominio.Gestion;
 using Reservas.Dominio.Negocios;
 
@@ -12,7 +14,11 @@ namespace Reservas.Aplicacion.ReservasPublicas;
 /// elegida, vuelve a calcular la disponibilidad y prueba con otra mesa libre a esa hora antes de
 /// rendirse: dos peticiones simultáneas para la misma hora no deberían fallar si hay mesa para las dos.
 /// </summary>
-internal sealed class CreadorReservas(ServicioDisponibilidad disponibilidad, IRepositorioReservas reservas, TimeProvider reloj)
+internal sealed class CreadorReservas(
+    ServicioDisponibilidad disponibilidad,
+    IRepositorioReservas reservas,
+    OpcionesCorreo opcionesCorreo,
+    TimeProvider reloj)
 {
     private const int MaximoIntentos = 3;
 
@@ -48,7 +54,11 @@ internal sealed class CreadorReservas(ServicioDisponibilidad disponibilidad, IRe
                 return Resultado.Fallo<ReservaConNegocio>(reserva.Error);
             }
 
-            var guardada = await reservas.AgregarAsync(reserva.Valor, cancellationToken);
+            // El correo (petición de confirmación o confirmación) va en la misma transacción que la reserva.
+            var tipoCorreo = origen == OrigenReserva.Publica ? TipoCorreo.Solicitud : TipoCorreo.Confirmacion;
+            var correo = PlantillasCorreo.Crear(tipoCorreo, reserva.Valor, negocio, opcionesCorreo, ahora);
+
+            var guardada = await reservas.AgregarAsync(reserva.Valor, [correo], cancellationToken);
 
             if (guardada.EsExito)
             {

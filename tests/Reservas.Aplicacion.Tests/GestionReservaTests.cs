@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Time.Testing;
 
+using Reservas.Aplicacion.Correos;
 using Reservas.Aplicacion.Disponibilidad;
 using Reservas.Aplicacion.Negocios;
 using Reservas.Aplicacion.ReservasPublicas;
@@ -40,14 +41,14 @@ public class GestionReservaTests
         var ct = TestContext.Current.CancellationToken;
 
         (await new ConsultarReserva(_reservas, _negocios).EjecutarAsync("desconocido", ct)).Error.Codigo.ShouldBe("reserva.no_encontrada");
-        (await new ConfirmarReserva(_reservas, _negocios, _reloj).EjecutarAsync("desconocido", ct)).Error.Codigo.ShouldBe("reserva.no_encontrada");
-        (await new CancelarReserva(_reservas, _negocios).EjecutarAsync("desconocido", ct)).Error.Codigo.ShouldBe("reserva.no_encontrada");
+        (await new ConfirmarReserva(_reservas, _negocios, new OpcionesCorreo(), _reloj).EjecutarAsync("desconocido", ct)).Error.Codigo.ShouldBe("reserva.no_encontrada");
+        (await new CancelarReserva(_reservas, _negocios, new OpcionesCorreo(), _reloj).EjecutarAsync("desconocido", ct)).Error.Codigo.ShouldBe("reserva.no_encontrada");
     }
 
     [Fact]
     public async Task Confirmar_una_reserva_pendiente_la_confirma_y_la_guarda()
     {
-        var resultado = await new ConfirmarReserva(_reservas, _negocios, _reloj).EjecutarAsync(_reserva.CodigoGestion, TestContext.Current.CancellationToken);
+        var resultado = await new ConfirmarReserva(_reservas, _negocios, new OpcionesCorreo(), _reloj).EjecutarAsync(_reserva.CodigoGestion, TestContext.Current.CancellationToken);
 
         resultado.EsExito.ShouldBeTrue();
         resultado.Valor.Reserva.Estado.ShouldBe(EstadoReserva.Confirmada);
@@ -59,7 +60,7 @@ public class GestionReservaTests
     {
         _reloj.Advance(Reserva.TiempoParaConfirmar);
 
-        var resultado = await new ConfirmarReserva(_reservas, _negocios, _reloj).EjecutarAsync(_reserva.CodigoGestion, TestContext.Current.CancellationToken);
+        var resultado = await new ConfirmarReserva(_reservas, _negocios, new OpcionesCorreo(), _reloj).EjecutarAsync(_reserva.CodigoGestion, TestContext.Current.CancellationToken);
 
         resultado.Error.Codigo.ShouldBe("reserva.caducada");
         _reserva.Estado.ShouldBe(EstadoReserva.Pendiente);
@@ -69,7 +70,7 @@ public class GestionReservaTests
     [Fact]
     public async Task Cancelar_libera_la_reserva_y_una_segunda_cancelacion_es_un_conflicto()
     {
-        var cancelar = new CancelarReserva(_reservas, _negocios);
+        var cancelar = new CancelarReserva(_reservas, _negocios, new OpcionesCorreo(), _reloj);
         var ct = TestContext.Current.CancellationToken;
 
         (await cancelar.EjecutarAsync(_reserva.CodigoGestion, ct)).Valor.Reserva.Estado.ShouldBe(EstadoReserva.Cancelada);
@@ -84,7 +85,7 @@ public class GestionReservaTests
     {
         _reserva.Cancelar();
 
-        var resultado = await new ConfirmarReserva(_reservas, _negocios, _reloj).EjecutarAsync(_reserva.CodigoGestion, TestContext.Current.CancellationToken);
+        var resultado = await new ConfirmarReserva(_reservas, _negocios, new OpcionesCorreo(), _reloj).EjecutarAsync(_reserva.CodigoGestion, TestContext.Current.CancellationToken);
 
         resultado.Error.Codigo.ShouldBe("reserva.transicion_invalida");
     }
