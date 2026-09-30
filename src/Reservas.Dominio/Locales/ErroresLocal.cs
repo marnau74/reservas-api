@@ -12,4 +12,7 @@ public static class ErroresLocal
 
     public static readonly ErrorDominio HorarioInvalido =
         new("local.horario_invalido", "El horario necesita una hora de cierre no anterior a la de apertura y un intervalo entre 5 y 120 minutos.");
+
+    public static readonly ErrorDominio CierreInvalido =
+        new("local.cierre_invalido", "El cierre necesita un motivo de hasta 200 caracteres.");
 }
