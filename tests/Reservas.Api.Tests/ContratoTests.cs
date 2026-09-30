@@ -18,9 +18,16 @@ public partial class ContratoTests(ApiConBaseDeDatos api) : PruebaApi(api), ICla
     [
         "reserva.franja_no_disponible", "reserva.mesa_ocupada", "reserva.conflicto_concurrencia",
         "reserva.transicion_invalida", "reserva.caducada", "reserva.aun_no_es_hora", "reserva.no_caduca_aun",
+        "usuario.email_en_uso", "usuario.protegido", "usuario.ya_desactivado", "sala.con_mesas", "mesa.con_reservas",
     ];
 
-    private static readonly string[] NoEncontrados = ["negocio.no_encontrado", "reserva.no_encontrada"];
+    private static readonly string[] NoEncontrados =
+    [
+        "negocio.no_encontrado", "reserva.no_encontrada", "usuario.no_encontrado", "sala.no_encontrada",
+        "mesa.no_encontrada", "horario.no_encontrado", "cierre.no_encontrado",
+    ];
+
+    private static readonly string[] NoAutenticados = ["auth.credenciales_invalidas", "auth.token_invalido"];
 
     /// <summary>Todos los errores de negocio declarados en el dominio, la aplicación y la API.</summary>
     private static List<ErrorDominio> TodosLosErrores() =>
@@ -51,13 +58,13 @@ public partial class ContratoTests(ApiConBaseDeDatos api) : PruebaApi(api), ICla
 
         foreach (var error in negocio)
         {
-            var esperado = NoEncontrados.Contains(error.Codigo) ? 404 : Conflictos.Contains(error.Codigo) ? 409 : 422;
+            var esperado = NoAutenticados.Contains(error.Codigo) ? 401 : NoEncontrados.Contains(error.Codigo) ? 404 : Conflictos.Contains(error.Codigo) ? 409 : 422;
 
             ProblemasApi.EstadoHttp(error).ShouldBe(esperado, error.Codigo);
         }
 
         // Los listados de arriba no se han quedado desfasados respecto a los errores reales.
-        Conflictos.Concat(NoEncontrados).ShouldBeSubsetOf(negocio.Select(e => e.Codigo));
+        Conflictos.Concat(NoEncontrados).Concat(NoAutenticados).ShouldBeSubsetOf(negocio.Select(e => e.Codigo));
     }
 
     [Fact]
