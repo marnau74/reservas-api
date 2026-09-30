@@ -4,6 +4,9 @@ namespace Reservas.Dominio.Locales;
 
 public static class ErroresLocal
 {
+    public static readonly ErrorDominio SalaInvalida =
+        new("local.sala_invalida", "La sala necesita un nombre de hasta 100 caracteres.");
+
     public static readonly ErrorDominio MesaInvalida =
         new("local.mesa_invalida", "La mesa necesita nombre y una capacidad mínima y máxima entre 1 y 30, con la mínima no mayor que la máxima.");
 

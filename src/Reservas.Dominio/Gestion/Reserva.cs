@@ -20,6 +20,14 @@ public sealed class Reserva
 
     private readonly Guid[] _mesaIds;
 
+    // Constructor para que EF Core reconstruya la reserva desde la base de datos.
+    private Reserva()
+    {
+        Cliente = null!;
+        CodigoGestion = null!;
+        _mesaIds = [];
+    }
+
     private Reserva(
         Guid negocioId,
         IntervaloTiempo intervalo,

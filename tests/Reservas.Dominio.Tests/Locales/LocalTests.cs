@@ -4,6 +4,33 @@ using Shouldly;
 
 namespace Reservas.Dominio.Tests.Locales;
 
+public class SalaTests
+{
+    [Fact]
+    public void Una_sala_valida_se_crea_sin_espacios_sobrantes()
+    {
+        var resultado = Sala.Crear("  Terraza  ");
+
+        resultado.EsExito.ShouldBeTrue();
+        resultado.Valor.Nombre.ShouldBe("Terraza");
+        resultado.Valor.Id.ShouldNotBe(Guid.Empty);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void Una_sala_necesita_nombre(string nombre)
+    {
+        Sala.Crear(nombre).Error.Codigo.ShouldBe("local.sala_invalida");
+    }
+
+    [Fact]
+    public void El_nombre_de_una_sala_no_puede_superar_los_cien_caracteres()
+    {
+        Sala.Crear(new string('a', 101)).EsFallo.ShouldBeTrue();
+    }
+}
+
 public class MesaTests
 {
     [Fact]
