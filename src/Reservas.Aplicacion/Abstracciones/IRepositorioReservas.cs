@@ -26,6 +26,9 @@ public interface IRepositorioReservas
     /// <summary>Busca una reserva por su identificador, o <c>null</c> si no existe.</summary>
     Task<Reserva?> ObtenerAsync(Guid id, CancellationToken cancellationToken);
 
+    /// <summary>Busca una reserva por el código secreto de su enlace, o <c>null</c> si no existe.</summary>
+    Task<Reserva?> ObtenerPorCodigoAsync(string codigoGestion, CancellationToken cancellationToken);
+
     /// <summary>
     /// Guarda los cambios de una reserva obtenida con <see cref="ObtenerAsync"/>. Si alguien la
     /// modificó entretanto, no guarda nada y devuelve <c>reserva.conflicto_concurrencia</c>.

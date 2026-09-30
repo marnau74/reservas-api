@@ -271,6 +271,58 @@ namespace Reservas.Infraestructura.Persistencia.Migraciones
                     b.ToTable("negocios", (string)null);
                 });
 
+            modelBuilder.Entity("Reservas.Infraestructura.Persistencia.ClaveIdempotenciaEntidad", b =>
+                {
+                    b.Property<string>("Clave")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("clave");
+
+                    b.Property<DateTimeOffset>("ActualizadaEn")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("actualizada_en");
+
+                    b.Property<bool>("Completada")
+                        .HasColumnType("boolean")
+                        .HasColumnName("completada");
+
+                    b.Property<DateTimeOffset>("CreadaEn")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("creada_en");
+
+                    b.Property<string>("Cuerpo")
+                        .HasColumnType("text")
+                        .HasColumnName("cuerpo");
+
+                    b.Property<int?>("EstadoHttp")
+                        .HasColumnType("integer")
+                        .HasColumnName("estado_http");
+
+                    b.Property<string>("HuellaPeticion")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("huella_peticion");
+
+                    b.Property<string>("TipoContenido")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("tipo_contenido");
+
+                    b.Property<string>("Ubicacion")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("ubicacion");
+
+                    b.HasKey("Clave")
+                        .HasName("pk_claves_idempotencia");
+
+                    b.HasIndex("ActualizadaEn")
+                        .HasDatabaseName("ix_claves_idempotencia_actualizada_en");
+
+                    b.ToTable("claves_idempotencia", (string)null);
+                });
+
             modelBuilder.Entity("Reservas.Infraestructura.Persistencia.OcupacionMesaEntidad", b =>
                 {
                     b.Property<Guid>("ReservaId")

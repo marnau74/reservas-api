@@ -29,8 +29,11 @@ public sealed record PoliticasReserva
     /// <summary>Cuánto tiempo ocupa una mesa cada reserva.</summary>
     public TimeSpan DuracionEstandar { get; }
 
-    public static PoliticasReserva PorDefecto { get; } =
-        new(TimeSpan.FromHours(1), 60, 10, TimeSpan.FromMinutes(90));
+    /// <summary>
+    /// Las políticas habituales. Devuelve una instancia nueva cada vez: al persistirse, cada negocio
+    /// necesita su propio objeto, porque EF Core no admite que dos propietarios compartan uno.
+    /// </summary>
+    public static PoliticasReserva PorDefecto => new(TimeSpan.FromHours(1), 60, 10, TimeSpan.FromMinutes(90));
 
     public static Resultado<PoliticasReserva> Crear(
         TimeSpan antelacionMinima,

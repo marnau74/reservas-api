@@ -59,6 +59,9 @@ public sealed class RepositorioReservas(ReservasDbContext db) : IRepositorioRese
     public Task<Reserva?> ObtenerAsync(Guid id, CancellationToken cancellationToken) =>
         db.Reservas.FirstOrDefaultAsync(reserva => reserva.Id == id, cancellationToken);
 
+    public Task<Reserva?> ObtenerPorCodigoAsync(string codigoGestion, CancellationToken cancellationToken) =>
+        db.Reservas.FirstOrDefaultAsync(reserva => reserva.CodigoGestion == codigoGestion, cancellationToken);
+
     public async Task<Resultado> ActualizarAsync(Reserva reserva, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(reserva);
@@ -141,24 +144,5 @@ public sealed class RepositorioReservas(ReservasDbContext db) : IRepositorioRese
     }
 
     private static bool EsViolacionDeExclusion(Exception excepcion) =>
-        BuscarErrorPostgres(excepcion) is { SqlState: PostgresErrorCodes.ExclusionViolation };
-
-    /// <summary>
-    /// EF Core envuelve los errores de la base de datos, y los que considera transitorios los
-    /// envuelve una vez más: hay que recorrer la cadena hasta el original.
-    /// </summary>
-    private static PostgresException? BuscarErrorPostgres(Exception? excepcion)
-    {
-        while (excepcion is not null)
-        {
-            if (excepcion is PostgresException postgres)
-            {
-                return postgres;
-            }
-
-            excepcion = excepcion.InnerException;
-        }
-
-        return null;
-    }
+        ErroresPostgres.Es(excepcion, PostgresErrorCodes.ExclusionViolation);
 }
