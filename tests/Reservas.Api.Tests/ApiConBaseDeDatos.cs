@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Time.Testing;
 
+using Reservas.Aplicacion.Abstracciones;
 using Reservas.Infraestructura.Persistencia;
 using Reservas.Tests.Comunes;
 
@@ -32,6 +33,9 @@ public class ApiConBaseDeDatos(ServidorPostgres servidor) : IAsyncLifetime
     /// <summary>Hora actual de la API. Empieza el 1 de septiembre de 2026 a las 10:00 UTC.</summary>
     public FakeTimeProvider Reloj { get; } = new(new DateTimeOffset(2026, 9, 1, 10, 0, 0, TimeSpan.Zero));
 
+    /// <summary>Recoge los correos que la API «envía», en lugar de mandarlos a ningún servidor.</summary>
+    public EnviadorCorreoFalso Enviador { get; } = new();
+
     public string CadenaConexion { get; private set; } = string.Empty;
 
     /// <summary>
@@ -41,6 +45,12 @@ public class ApiConBaseDeDatos(ServidorPostgres servidor) : IAsyncLifetime
     protected virtual IReadOnlyDictionary<string, string?> Ajustes { get; } = new Dictionary<string, string?>
     {
         ["Desarrollo:SembrarDatosDemo"] = "false",
+
+        // Las tareas en segundo plano dependen del reloj, que aquí controla el test: se dirigen a mano.
+        ["Tareas:Activas"] = "false",
+
+        // Los tests leen el código de gestión de la respuesta en lugar de buscarlo en un correo.
+        ["Publico:MostrarCodigoGestion"] = "true",
         ["Limites:Lectura:Permisos"] = "100000",
         ["Limites:Lectura:VentanaSegundos"] = "60",
         ["Limites:Escritura:Permisos"] = "100000",
@@ -74,7 +84,7 @@ public class ApiConBaseDeDatos(ServidorPostgres servidor) : IAsyncLifetime
     {
         // Base de datos vacía y sin migrar: la migra la API al arrancar.
         CadenaConexion = await servidor.CrearBaseDeDatosSinMigrarAsync();
-        _fabrica = new Fabrica(CadenaConexion, Ajustes, Reloj);
+        _fabrica = new Fabrica(CadenaConexion, Ajustes, Reloj, Enviador);
 
         // Crear un cliente arranca la API, que crea las tablas; después ya se pueden sembrar datos.
         using var arranque = _fabrica.CreateClient();
@@ -100,7 +110,11 @@ public class ApiConBaseDeDatos(ServidorPostgres servidor) : IAsyncLifetime
         }
     }
 
-    private sealed class Fabrica(string cadenaConexion, IReadOnlyDictionary<string, string?> ajustes, FakeTimeProvider reloj)
+    private sealed class Fabrica(
+        string cadenaConexion,
+        IReadOnlyDictionary<string, string?> ajustes,
+        FakeTimeProvider reloj,
+        EnviadorCorreoFalso enviador)
         : WebApplicationFactory<Program>
     {
         protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -116,7 +130,43 @@ public class ApiConBaseDeDatos(ServidorPostgres servidor) : IAsyncLifetime
             {
                 servicios.RemoveAll<TimeProvider>();
                 servicios.AddSingleton<TimeProvider>(reloj);
+                servicios.RemoveAll<IEnviadorCorreo>();
+                servicios.AddSingleton<IEnviadorCorreo>(enviador);
             });
         }
+    }
+}
+
+/// <summary>Un «servidor de correo» de pruebas: apunta lo que se le envía y puede simular que está caído.</summary>
+public sealed class EnviadorCorreoFalso : IEnviadorCorreo
+{
+    private readonly List<MensajeCorreo> _enviados = [];
+
+    public bool Caido { get; set; }
+
+    public IReadOnlyList<MensajeCorreo> Enviados
+    {
+        get
+        {
+            lock (_enviados)
+            {
+                return [.. _enviados];
+            }
+        }
+    }
+
+    public Task EnviarAsync(MensajeCorreo mensaje, CancellationToken cancellationToken)
+    {
+        if (Caido)
+        {
+            throw new InvalidOperationException("servidor de correo caído");
+        }
+
+        lock (_enviados)
+        {
+            _enviados.Add(mensaje);
+        }
+
+        return Task.CompletedTask;
     }
 }

@@ -11,6 +11,8 @@ public sealed class ApiConLimiteBajo(Reservas.Tests.Comunes.ServidorPostgres ser
     protected override IReadOnlyDictionary<string, string?> Ajustes { get; } = new Dictionary<string, string?>
     {
         ["Desarrollo:SembrarDatosDemo"] = "false",
+        ["Tareas:Activas"] = "false",
+        ["Publico:MostrarCodigoGestion"] = "true",
         ["Limites:Lectura:Permisos"] = "100000",
         ["Limites:Lectura:VentanaSegundos"] = "60",
         ["Limites:Escritura:Permisos"] = "3",
