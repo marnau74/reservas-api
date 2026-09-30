@@ -26,7 +26,7 @@ public class DependenciasTests
     {
         var resultado = Types.InAssembly(EnsambladoDominio)
             .ShouldNot()
-            .HaveDependencyOnAny(Aplicacion, Infraestructura, Api, "Microsoft.EntityFrameworkCore", "Microsoft.AspNetCore")
+            .HaveDependencyOnAny(Aplicacion, Infraestructura, Api, "Microsoft.EntityFrameworkCore", "Npgsql", "Microsoft.AspNetCore")
             .GetResult();
 
         resultado.IsSuccessful.ShouldBeTrue(Explicar(resultado));
@@ -37,7 +37,7 @@ public class DependenciasTests
     {
         var resultado = Types.InAssembly(EnsambladoAplicacion)
             .ShouldNot()
-            .HaveDependencyOnAny(Infraestructura, Api, "Microsoft.EntityFrameworkCore", "Microsoft.AspNetCore")
+            .HaveDependencyOnAny(Infraestructura, Api, "Microsoft.EntityFrameworkCore", "Npgsql", "Microsoft.AspNetCore")
             .GetResult();
 
         resultado.IsSuccessful.ShouldBeTrue(Explicar(resultado));

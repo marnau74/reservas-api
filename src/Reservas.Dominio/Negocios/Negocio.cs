@@ -7,6 +7,16 @@ namespace Reservas.Dominio.Negocios;
 /// <summary>Un bar o restaurante que gestiona sus reservas en la plataforma.</summary>
 public sealed partial class Negocio
 {
+    // Constructor para que EF Core reconstruya el objeto desde la base de datos: las
+    // propiedades se rellenan después con los valores guardados.
+    private Negocio()
+    {
+        Slug = null!;
+        Nombre = null!;
+        Zona = null!;
+        Politicas = null!;
+    }
+
     private Negocio(Guid id, string slug, string nombre, ZonaHorariaNegocio zona, PoliticasReserva politicas)
     {
         Id = id;

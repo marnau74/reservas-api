@@ -1,0 +1,89 @@
+using Microsoft.EntityFrameworkCore;
+
+using Npgsql;
+
+using Reservas.Infraestructura.Persistencia;
+
+using Testcontainers.PostgreSql;
+
+namespace Reservas.Tests.Comunes;
+
+/// <summary>
+/// Un PostgreSQL real en un contenedor de Docker, compartido por todos los tests de un
+/// ensamblado (arrancar un contenedor tarda unos segundos, así que se hace una sola vez).
+/// Cada test pide su propia base de datos, ya migrada: quedan completamente aislados entre sí
+/// aunque se ejecuten a la vez.
+/// </summary>
+/// <remarks>
+/// La versión coincide con la de producción (Neon usa PostgreSQL 17). Probar contra una base de
+/// datos en memoria o contra SQLite no serviría: la garantía de no reservar dos veces la misma
+/// mesa es una restricción de exclusión, que solo existe en PostgreSQL.
+/// </remarks>
+public sealed class ServidorPostgres : IAsyncDisposable
+{
+    private readonly PostgreSqlContainer _contenedor = new PostgreSqlBuilder("postgres:17-alpine").Build();
+    private readonly SemaphoreSlim _arranque = new(1, 1);
+    private bool _iniciado;
+
+    /// <summary>Crea una base de datos nueva con todas las migraciones aplicadas y devuelve su cadena de conexión.</summary>
+    public async Task<string> CrearBaseDeDatosAsync()
+    {
+        var cadena = await CrearBaseDeDatosSinMigrarAsync();
+
+        await using var contexto = CrearContexto(cadena);
+        await contexto.Database.MigrateAsync();
+
+        return cadena;
+    }
+
+    /// <summary>Crea una base de datos vacía (sin tablas) y devuelve su cadena de conexión.</summary>
+    public async Task<string> CrearBaseDeDatosSinMigrarAsync()
+    {
+        await IniciarAsync();
+
+        var nombre = $"reservas_{Guid.NewGuid():N}";
+        var administrador = _contenedor.GetConnectionString();
+
+        await using (var conexion = new NpgsqlConnection(administrador))
+        {
+            await conexion.OpenAsync();
+            await using var crear = new NpgsqlCommand($"CREATE DATABASE \"{nombre}\"", conexion);
+            await crear.ExecuteNonQueryAsync();
+        }
+
+        return new NpgsqlConnectionStringBuilder(administrador) { Database = nombre }.ConnectionString;
+    }
+
+    /// <summary>Un contexto nuevo sobre la base de datos indicada (cada uno es una unidad de trabajo independiente).</summary>
+    public static ReservasDbContext CrearContexto(string cadenaConexion)
+    {
+        var opciones = new DbContextOptionsBuilder<ReservasDbContext>().UseNpgsql(cadenaConexion);
+        OpcionesReservas.Configurar(opciones);
+
+        return new ReservasDbContext(opciones.Options);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _arranque.Dispose();
+        await _contenedor.DisposeAsync();
+    }
+
+    private async Task IniciarAsync()
+    {
+        await _arranque.WaitAsync();
+
+        try
+        {
+            if (!_iniciado)
+            {
+                await _contenedor.StartAsync();
+                _iniciado = true;
+            }
+        }
+        finally
+        {
+            _arranque.Release();
+        }
+    }
+}

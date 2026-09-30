@@ -395,3 +395,8 @@ dotnet_naming_style.s_camelcase.capitalization = camel_case
 # que es la convención habitual en tests; fuera de tests se mantiene la regla.
 [tests/**.cs]
 dotnet_diagnostic.CA1707.severity = none
+
+# Migraciones de EF Core: código generado por la herramienta (las escritas a mano se
+# mantienen ordenadas igualmente). Los analizadores no lo revisan.
+[**/Persistencia/Migraciones/*.cs]
+generated_code = true

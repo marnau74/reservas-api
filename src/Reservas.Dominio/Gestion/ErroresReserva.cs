@@ -31,4 +31,10 @@ public static class ErroresReserva
 
     public static readonly ErrorDominio NoCaducaAun =
         new("reserva.no_caduca_aun", "La reserva todavía está dentro del plazo para confirmarse.");
+
+    public static readonly ErrorDominio MesaOcupada =
+        new("reserva.mesa_ocupada", "Alguna de las mesas ya está reservada a esa hora.");
+
+    public static readonly ErrorDominio ConflictoConcurrencia =
+        new("reserva.conflicto_concurrencia", "La reserva ha cambiado mientras se procesaba esta operación. Inténtalo de nuevo.");
 }

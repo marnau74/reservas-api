@@ -11,5 +11,7 @@
     <Project Path="tests/Reservas.Api.Tests/Reservas.Api.Tests.csproj" />
     <Project Path="tests/Reservas.Arquitectura.Tests/Reservas.Arquitectura.Tests.csproj" />
     <Project Path="tests/Reservas.Dominio.Tests/Reservas.Dominio.Tests.csproj" />
+    <Project Path="tests/Reservas.Infraestructura.Tests/Reservas.Infraestructura.Tests.csproj" />
+    <Project Path="tests/Reservas.Tests.Comunes/Reservas.Tests.Comunes.csproj" />
   </Folder>
 </Solution>

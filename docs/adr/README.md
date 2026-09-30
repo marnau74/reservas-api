@@ -8,3 +8,4 @@ nuevo que lo sustituye.
 |---|---|---|
 | [0001](0001-resultado-en-lugar-de-excepciones.md) | Errores de negocio con `Resultado`, sin excepciones | Aceptada |
 | [0002](0002-tiempo-utc-y-hora-local.md) | Instantes en UTC, horarios en hora local y una única conversión | Aceptada |
+| [0003](0003-no-solapar-reservas-en-postgresql.md) | No solapar reservas: restricción de exclusión y cola por mesa | Aceptada |

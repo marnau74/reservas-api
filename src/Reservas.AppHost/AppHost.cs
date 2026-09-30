@@ -4,7 +4,9 @@
 
 var builder = DistributedApplication.CreateBuilder(args);
 
+// PostgreSQL 17: la misma versión que usan los tests y la demo pública (Neon).
 var postgres = builder.AddPostgres("postgres")
+    .WithImageTag("17")
     .WithDataVolume("reservas-postgres")
     .WithLifetime(ContainerLifetime.Persistent);
 
