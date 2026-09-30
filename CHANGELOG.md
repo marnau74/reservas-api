@@ -6,6 +6,18 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 ## [Sin publicar]
 
 ### Añadido
+- Persistencia con EF Core y PostgreSQL 17: modelo del dominio (negocios, salas, mesas, horarios,
+  cierres y reservas), migraciones y nombres en snake_case. El tramo de cada reserva se guarda
+  como `tstzrange` y las mesas como `uuid[]`.
+- **Restricción de exclusión** que impide reservar dos veces la misma mesa a la misma hora, y
+  cola por mesa para que las peticiones simultáneas no se interbloqueen (ADR 0003).
+- Repositorio de reservas con concurrencia optimista (`xmin`) que traduce los conflictos de la
+  base de datos a errores de negocio (`reserva.mesa_ocupada`, `reserva.conflicto_concurrencia`).
+- Tests de infraestructura contra un PostgreSQL real con Testcontainers, cada test en su propia
+  base de datos, incluidas 20 peticiones simultáneas por la misma mesa.
+- La API se conecta a PostgreSQL (integración de Aspire, con health check de la base de datos)
+  y aplica las migraciones al arrancar en desarrollo.
+- Entidad `Sala` del dominio.
 - Dominio de las reservas, sin dependencias de frameworks:
   - Negocio con zona horaria y políticas de reserva (antelación, días máximos, comensales
     online y duración), y mesas, horarios y cierres del local.

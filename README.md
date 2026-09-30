@@ -27,10 +27,25 @@ El **dominio**, que es donde vive la lógica de negocio y no depende de ningún 
   veces; el dominio decide qué hacer y los tests lo demuestran
   ([ADR 0002](docs/adr/0002-tiempo-utc-y-hora-local.md)).
 
+## No reservar dos veces la misma mesa
+
+La garantía no está en el código sino en PostgreSQL: cada mesa de cada reserva es una fila con
+su tramo de tiempo, y una **restricción de exclusión** impide que dos filas activas ocupen la
+misma mesa con tramos que se solapen. Lo comprueba la base de datos al escribir, así que es
+cierto con cualquier número de peticiones simultáneas, aunque alguien se salte la aplicación.
+
+Un test lanza **20 peticiones simultáneas** por la misma mesa y hora: exactamente una tiene
+éxito y las otras 19 reciben `reserva.mesa_ocupada`. Otro lanza reservas que se pisan solo en
+parte y comprueba que las aceptadas nunca se solapan.
+
+Al probarlo aparecieron interbloqueos entre las peticiones que compiten, y la solución fue
+hacerlas hacer cola por mesa. Está explicado, con lo que no funcionó, en el
+[ADR 0003](docs/adr/0003-no-solapar-reservas-en-postgresql.md).
+
 ## Stack
 
 .NET 10 · ASP.NET Core (minimal APIs) · EF Core · PostgreSQL · .NET Aspire · OpenTelemetry ·
-xUnit v3 · Testcontainers
+xUnit v3 · Testcontainers (PostgreSQL real en los tests)
 
 ## Cómo ejecutarlo
 
