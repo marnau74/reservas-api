@@ -9,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
 using Reservas.Api;
+using Reservas.Api.Arranque;
 using Reservas.Api.Contratos;
 using Reservas.Api.Endpoints;
 using Reservas.Api.Idempotencia;
@@ -39,6 +40,7 @@ builder.EnrichNpgsqlDbContext<ReservasDbContext>();
 
 builder.Services.TryAddSingleton(TimeProvider.System);
 builder.Services.AddSeguridad(builder.Configuration, builder.Environment.IsDevelopment());
+builder.Services.AddCorsRestringido(builder.Configuration);
 builder.Services.AddInfraestructura(builder.Configuration);
 
 var opcionesCorreo = builder.Configuration.GetSection("Correo").Get<OpcionesCorreo>() ?? new OpcionesCorreo();
@@ -104,29 +106,36 @@ if (builder.Configuration.GetValue<bool>("Proxy:ConfiarEnCabecerasReenviadas"))
     app.UseForwardedHeaders();
 }
 
+app.UseCabecerasDeSeguridad();
+
+if (!app.Environment.IsDevelopment())
+{
+    // Le dice al navegador que hable siempre por HTTPS con esta API. El HTTPS lo termina el proxy
+    // (Render, Caddy…): la cabecera solo se envía si la petición llegó por HTTPS.
+    app.UseHsts();
+}
+
 app.UseExceptionHandler();
 app.UseStatusCodePages();
+
+if (builder.Configuration.GetSection("Cors:Origenes").Get<string[]>() is { Length: > 0 })
+{
+    app.UseCors(CabecerasYCors.PoliticaCors);
+}
+
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseMiddleware<IdempotenciaMiddleware>();
 
+// El contrato solo se publica en desarrollo: en producción no hay motivo para describir la API a desconocidos.
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
-
-    // En desarrollo la base de datos se crea y se actualiza al arrancar. En producción las
-    // migraciones se aplican como un paso propio del despliegue, no desde la API.
-    await using var ambito = app.Services.CreateAsyncScope();
-    var db = ambito.ServiceProvider.GetRequiredService<ReservasDbContext>();
-    await db.Database.MigrateAsync();
-
-    // Un negocio ficticio para poder probar la API a mano. Los tests lo desactivan para controlar sus datos.
-    if (builder.Configuration.GetValue("Desarrollo:SembrarDatosDemo", true))
-    {
-        await SembradorDemo.SembrarSiHaceFaltaAsync(db, builder.Configuration["Desarrollo:ContrasenaDemo"] ?? SembradorDemo.ContrasenaDemoPorDefecto);
-    }
 }
+
+// Migraciones y datos de demostración, según la configuración (ver InicioBaseDeDatos).
+await InicioBaseDeDatos.PrepararAsync(app);
 
 // /health (listo para recibir tráfico) y /alive (el proceso responde).
 app.MapDefaultEndpoints();

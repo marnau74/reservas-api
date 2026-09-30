@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 
+using Reservas.Dominio.Comun;
+using Reservas.Dominio.Gestion;
 using Reservas.Dominio.Locales;
 using Reservas.Dominio.Negocios;
 using Reservas.Dominio.Personal;
@@ -107,6 +109,63 @@ public static class SembradorDemo
             foreach (var (email, nombre, rol) in CuentasDemo)
             {
                 await CrearUsuarioAsync(db, negocio.Id, email, nombre, rol, contrasena);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Crea unas reservas ficticias en los próximos tres días (una en la comida y otra en la cena de
+    /// cada uno) para que la agenda de la demo no esté vacía. Solo si el negocio aún no tiene ninguna.
+    /// </summary>
+    public static async Task SembrarReservasDeEjemploAsync(ReservasDbContext db, TimeProvider reloj)
+    {
+        ArgumentNullException.ThrowIfNull(db);
+        ArgumentNullException.ThrowIfNull(reloj);
+
+        var negocio = await db.Negocios.FirstOrDefaultAsync(n => n.Slug == SlugPorDefecto);
+        if (negocio is null || await db.Reservas.AnyAsync(r => r.NegocioId == negocio.Id))
+        {
+            return;
+        }
+
+        var mesas = await db.Mesas.IgnoreQueryFilters()
+            .Where(m => EF.Property<Guid>(m, ConstantesPersistencia.NegocioId) == negocio.Id)
+            .OrderBy(m => m.Nombre)
+            .ToListAsync();
+        if (mesas.Count == 0)
+        {
+            return;
+        }
+
+        var ahora = reloj.GetUtcNow();
+        var hoy = negocio.Zona.FechaLocal(ahora);
+        var repositorio = new RepositorioReservas(db);
+        var numero = 0;
+
+        for (var dia = 1; dia <= 3; dia++)
+        {
+            foreach (var (hora, comensales) in new[] { (new TimeOnly(13, 30), 2), (new TimeOnly(21, 0), 4) })
+            {
+                var inicio = negocio.Zona.AUtc(hoy.AddDays(dia), hora);
+                if (inicio is null)
+                {
+                    continue;
+                }
+
+                numero++;
+                var mesa = mesas.FirstOrDefault(m => m.Admite(comensales)) ?? mesas[^1];
+                var cliente = DatosCliente.Crear($"Cliente demo {numero}", $"cliente.demo{numero}@example.com").Valor;
+
+                var reserva = Reserva.Crear(
+                    negocio.Id,
+                    new IntervaloTiempo(inicio.Value, inicio.Value + negocio.Politicas.DuracionEstandar),
+                    comensales,
+                    cliente,
+                    [mesa.Id],
+                    OrigenReserva.Personal,
+                    ahora).Valor;
+
+                await repositorio.AgregarAsync(reserva, [], CancellationToken.None);
             }
         }
     }
