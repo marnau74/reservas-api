@@ -4,29 +4,100 @@ API de reservas para bares y restaurantes, en .NET 10. Varios negocios en la mis
 disponibilidad por franjas, reservas con confirmación por correo y gestión del día a día
 del servicio.
 
-> En construcción: dominio, persistencia, API pública, parte del personal, correos, tareas
-> programadas y controles de calidad hechos; falta el despliegue.
+Está pensada como un proyecto real y no como un ejemplo: las reservas no se solapan aunque
+lleguen a la vez, ningún negocio ve los datos de otro, un servidor de correo caído no pierde
+reservas ni avisos, y cada decisión importante está explicada en un [registro de decisiones](docs/adr/).
 
 ## El problema central
 
 Dos personas no pueden reservar la misma mesa a la misma hora, aunque lleguen a la vez.
 La garantía no está solo en el código: la da PostgreSQL con una restricción de exclusión
-sobre los intervalos de cada mesa, y un test lanza reservas simultáneas para demostrarlo.
+sobre los intervalos de cada mesa, y un test lanza reservas simultáneas para demostrarlo
+([cómo funciona](#no-reservar-dos-veces-la-misma-mesa)).
 
-## Lo que hay hecho
+## Arquitectura
 
-El **dominio**, que es donde vive la lógica de negocio y no depende de ningún framework:
+Las dependencias apuntan siempre hacia dentro: el dominio no conoce ningún framework, y un proyecto
+de tests de arquitectura falla si alguien lo rompe.
 
-- **Reservas con estados:** pendiente → confirmada → sentada → completada, o cancelada / no
-  presentada. Las transiciones son métodos de la propia reserva y devuelven un resultado, no
-  lanzan excepciones ([ADR 0001](docs/adr/0001-resultado-en-lugar-de-excepciones.md)).
-- **Disponibilidad:** qué horas se pueden reservar un día para un grupo, aplicando cierres,
-  antelación mínima y máxima, límite de comensales online y las mesas ya ocupadas.
-- **Asignación de mesas:** la más ajustada al grupo; si no cabe en ninguna, la combinación
-  de menos mesas de una misma sala.
-- **Cambios de hora:** el 29 de marzo no existen las 02:30 y el 25 de octubre ocurren dos
-  veces; el dominio decide qué hacer y los tests lo demuestran
-  ([ADR 0002](docs/adr/0002-tiempo-utc-y-hora-local.md)).
+```mermaid
+flowchart LR
+    Cliente["Cliente<br/>(web del negocio)"] -->|HTTP| Api
+    Personal["Personal<br/>(agenda)"] -->|HTTP + JWT| Api
+
+    subgraph Solucion["Solución .NET"]
+        Api["Api<br/>endpoints, validación,<br/>límites, idempotencia"] --> App["Aplicación<br/>casos de uso"]
+        App --> Dom["Dominio<br/>reglas de negocio"]
+        Infra["Infraestructura<br/>EF Core, SMTP,<br/>tareas"] --> App
+        Api -.->|arranque| Infra
+    end
+
+    Infra --> PG[("PostgreSQL 17")]
+    Infra --> SMTP["Servidor de correo"]
+```
+
+## Cómo se hace una reserva
+
+El correo no se envía dentro de la petición: se guarda en la misma transacción que la reserva y otro
+proceso lo envía con reintentos ([ADR 0006](docs/adr/0006-correos-con-bandeja-de-salida-y-tareas-programadas.md)).
+
+```mermaid
+sequenceDiagram
+    actor C as Cliente
+    participant A as API
+    participant P as PostgreSQL
+    participant E as Proceso de envío
+    participant S as Servidor de correo
+
+    C->>A: POST /reservas (Idempotency-Key)
+    A->>P: calcula disponibilidad y elige mesa
+    A->>P: una transacción: reserva + ocupación de mesa + correo pendiente
+    Note over P: la restricción de exclusión rechaza<br/>una mesa ya ocupada a esa hora
+    P-->>A: guardado
+    A-->>C: 201 (pendiente, sin código)
+
+    loop cada 10 segundos
+        E->>P: toma correos pendientes (SKIP LOCKED)
+        E->>S: envía
+        S-->>E: ok / error (se reintenta más tarde)
+        E->>P: marca como enviado
+    end
+
+    S-->>C: correo con el enlace de gestión
+    C->>A: POST /reservas/gestion/{código}/confirmar
+    A->>P: reserva confirmada + correo de confirmación
+```
+
+## Modelo de datos
+
+```mermaid
+erDiagram
+    NEGOCIO ||--o{ SALA : tiene
+    NEGOCIO ||--o{ HORARIO : define
+    NEGOCIO ||--o{ CIERRE : define
+    NEGOCIO ||--o{ USUARIO : emplea
+    NEGOCIO ||--o{ RESERVA : recibe
+    SALA ||--o{ MESA : agrupa
+    RESERVA ||--|{ OCUPACION_MESA : "bloquea mesas"
+    MESA ||--o{ OCUPACION_MESA : "es ocupada"
+    RESERVA ||--o{ CORREO_PENDIENTE : genera
+    USUARIO ||--o{ TOKEN_REFRESCO : "sesiones"
+
+    OCUPACION_MESA {
+        uuid mesa_id
+        tstzrange periodo
+        bool activa
+    }
+    RESERVA {
+        uuid id
+        string estado
+        tstzrange periodo
+        string codigo_gestion
+    }
+```
+
+Todas las tablas con datos de un negocio llevan `negocio_id`. La restricción que impide solapar reservas
+está en `ocupaciones_mesa`.
 
 ## Probar la API
 
@@ -42,7 +113,7 @@ curl "http://localhost:5052/api/v1/negocios/bar-la-plaza/disponibilidad?fecha=20
 curl -X POST http://localhost:5052/api/v1/negocios/bar-la-plaza/reservas \
   -H "Content-Type: application/json" \
   -H "Idempotency-Key: $(uuidgen)" \
-  -d '{"fecha":"2026-10-03","hora":"21:00","comensales":2,"cliente":{"nombre":"Ana Pérez","email":"ana@example.com"}}'
+  -d '{"fecha":"2026-10-03","hora":"21:00","comensales":2,"cliente":{"nombre":"Ana Perez","email":"ana@example.com"}}'
 # -> 201, con la reserva pendiente. El código llega por correo (en local, en Mailpit: http://localhost:8025)
 
 # 3. Confirmarla (o consultarla, o cancelarla) con el código del enlace del correo
@@ -57,12 +128,14 @@ curl -X POST http://localhost:5052/api/v1/reservas/gestion/CODIGO/confirmar
 | `GET /api/v1/reservas/gestion/{codigo}` | Consulta una reserva |
 | `POST /api/v1/reservas/gestion/{codigo}/confirmar` | La confirma (30 minutos de plazo) |
 | `POST /api/v1/reservas/gestion/{codigo}/cancelar` | La cancela y libera la mesa |
+| `DELETE /api/v1/reservas/gestion/{codigo}` | Borra los datos personales del cliente (RGPD) |
 
 Los errores son `application/problem+json` con un `code` estable (`reserva.mesa_ocupada`,
 `validacion.invalida`, `limite.excedido`…): los clientes deben fijarse en él, no en el texto.
 Repetir un `POST` con la misma clave devuelve la misma respuesta sin crear otra reserva
 ([ADR 0004](docs/adr/0004-idempotencia-de-las-peticiones.md)). El contrato completo está en
-`/openapi/v1.json`.
+`/openapi/v1.json` (en desarrollo) y guardado en el repositorio en
+[`openapi.v1.json`](tests/Reservas.Api.Tests/Contrato/openapi.v1.json).
 
 ## La parte del personal
 
@@ -95,10 +168,8 @@ explicados en el [ADR 0005](docs/adr/0005-sesion-del-personal-y-aislamiento-por-
 
 Al reservar por internet, el cliente recibe un correo con el enlace para confirmar (la respuesta de
 la API **no** trae el código secreto: solo llega por correo). También recibe la confirmación, el
-aviso de cancelación y un recordatorio 24 horas antes. Los correos no se envían dentro de la
-petición: se guardan en la base de datos en la misma transacción que la reserva y un proceso aparte
-los envía con reintentos, así que un servidor de correo caído no pierde reservas ni avisos
-([ADR 0006](docs/adr/0006-correos-con-bandeja-de-salida-y-tareas-programadas.md)).
+aviso de cancelación y un recordatorio 24 horas antes. Un servidor de correo caído no pierde
+reservas ni avisos.
 
 En local, `dotnet run --project src/Reservas.AppHost` levanta también **Mailpit**: los correos que
 envía la API se leen en http://localhost:8025, sin que salga nada a internet.
@@ -138,19 +209,44 @@ hacerlas hacer cola por mesa. Está explicado, con lo que no funcionó, en el
 - **Seguridad:** CodeQL con el conjunto `security-extended`, revisión de paquetes vulnerables y en
   desuso en cada cambio, Dependabot, y un test que recorre todas las rutas y falla si una de la parte
   privada no exige sesión o si una que escribe no tiene límite de peticiones.
+- **Producción segura por defecto:** fuera de desarrollo la API no arranca sin clave para firmar
+  los tokens, sin contraseña de demostración propia o con un origen CORS mal escrito; no publica su
+  contrato y envía cabeceras de seguridad ([ADR 0007](docs/adr/0007-despliegue-de-la-demo.md)).
 - **Avisos como errores** y formato comprobado en la integración continua.
+
+## Decisiones
+
+Cada decisión con consecuencias está en [`docs/adr`](docs/adr/) con su contexto, las alternativas
+descartadas y lo que se pierde al elegir.
+
+| | Decisión |
+|---|---|
+| [0001](docs/adr/0001-resultado-en-lugar-de-excepciones.md) | Errores de negocio con `Resultado`, sin excepciones |
+| [0002](docs/adr/0002-tiempo-utc-y-hora-local.md) | Instantes en UTC, horarios en hora local y una única conversión |
+| [0003](docs/adr/0003-no-solapar-reservas-en-postgresql.md) | No solapar reservas: restricción de exclusión y cola por mesa |
+| [0004](docs/adr/0004-idempotencia-de-las-peticiones.md) | Idempotencia de las peticiones con `Idempotency-Key` |
+| [0005](docs/adr/0005-sesion-del-personal-y-aislamiento-por-negocio.md) | Sesión del personal y aislamiento entre negocios |
+| [0006](docs/adr/0006-correos-con-bandeja-de-salida-y-tareas-programadas.md) | Correos con bandeja de salida y tareas programadas |
+| [0007](docs/adr/0007-despliegue-de-la-demo.md) | Despliegue de la demo |
+
+## Demo y despliegue
+
+La API se despliega como una imagen de Docker (`Dockerfile`). El repositorio incluye el plano para
+[Render](https://render.com) con la base de datos en [Neon](https://neon.tech)
+(`render.yaml`) y una guía paso a paso con todas las variables en [`docs/despliegue.md`](docs/despliegue.md).
+La demo usa un negocio, unas cuentas y unas reservas ficticios.
 
 ## Stack
 
-.NET 10 · ASP.NET Core (minimal APIs) · EF Core · PostgreSQL · .NET Aspire · OpenTelemetry ·
-xUnit v3 · Testcontainers (PostgreSQL real en los tests)
+.NET 10 · ASP.NET Core (minimal APIs) · EF Core · PostgreSQL 17 · .NET Aspire · OpenTelemetry ·
+FluentValidation · MailKit · xUnit v3 · Testcontainers (PostgreSQL y Mailpit reales en los tests)
 
 ## Cómo ejecutarlo
 
 Requiere el SDK de .NET 10 y Docker.
 
 ```bash
-dotnet run --project src/Reservas.AppHost   # PostgreSQL + API, con el panel de Aspire
+dotnet run --project src/Reservas.AppHost           # PostgreSQL + Mailpit + API, con el panel de Aspire
 dotnet run --project tests/Reservas.Dominio.Tests   # tests de un proyecto (los de integración piden Docker)
 ```
 
@@ -167,11 +263,12 @@ for proyecto in tests/*.Tests/; do dotnet run --project "$proyecto" || break; do
 src/
   Reservas.Dominio/          entidades y reglas de negocio, sin dependencias
   Reservas.Aplicacion/       casos de uso
-  Reservas.Infraestructura/  EF Core, correo, tareas en segundo plano
-  Reservas.Api/              endpoints HTTP
+  Reservas.Infraestructura/  EF Core, correo, bandeja de salida
+  Reservas.Api/              endpoints HTTP, seguridad, tareas en segundo plano
   Reservas.AppHost/          entorno local con .NET Aspire
   Reservas.ServiceDefaults/  observabilidad, health checks y resiliencia
-tests/                       dominio, integración (API) y arquitectura
+tests/                       dominio, aplicación, infraestructura, API y arquitectura
+docs/                        decisiones de diseño y guía de despliegue
 ```
 
 ## Licencia

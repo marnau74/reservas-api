@@ -62,6 +62,19 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 - Derecho de supresión: `DELETE /api/v1/reservas/gestion/{codigo}` borra los datos personales del
   cliente de una reserva que ya no está activa.
 
+**Despliegue**
+- Imagen de Docker en dos fases (sin SDK en la imagen final, sin administrador), plano para Render
+  (`render.yaml`) con la base de datos en Neon y guía con todas las variables (`docs/despliegue.md`,
+  ADR 0007). Se probó la imagen real contra un PostgreSQL en contenedor.
+- Fuera de desarrollo la API no arranca sin `Jwt:Clave` de 32 caracteres, con `Demo:Sembrar` sin
+  contraseña propia o con un origen CORS o un enlace de gestión mal escritos.
+- CORS restringido a los orígenes configurados (ninguno por defecto), cabeceras de seguridad
+  (`nosniff`, CSP, `X-Frame-Options`, `Cache-Control: no-store`, HSTS), y el contrato OpenAPI solo se
+  publica en desarrollo.
+- Migraciones al arrancar y datos de demostración configurables (`BaseDeDatos:MigrarAlArrancar`,
+  `Demo:Sembrar`), con unas reservas de ejemplo ficticias.
+- `/health` y `/alive` también fuera de desarrollo, solo con el estado y sin detalles.
+
 **Calidad**
 - Tests de dominio, de casos de uso con repositorios falsos y de integración contra PostgreSQL y
   Mailpit reales (Testcontainers), incluidas peticiones simultáneas; las reglas críticas se han

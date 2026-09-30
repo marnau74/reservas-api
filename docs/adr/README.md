@@ -12,3 +12,4 @@ nuevo que lo sustituye.
 | [0004](0004-idempotencia-de-las-peticiones.md) | Idempotencia de las peticiones con `Idempotency-Key` | Aceptada |
 | [0005](0005-sesion-del-personal-y-aislamiento-por-negocio.md) | Sesión del personal y aislamiento entre negocios | Aceptada |
 | [0006](0006-correos-con-bandeja-de-salida-y-tareas-programadas.md) | Correos con bandeja de salida y tareas programadas | Aceptada |
+| [0007](0007-despliegue-de-la-demo.md) | Despliegue de la demo | Aceptada |
