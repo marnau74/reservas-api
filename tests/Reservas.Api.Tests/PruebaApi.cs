@@ -1,7 +1,11 @@
 using System.Net.Http.Json;
 using System.Text.Json;
 
+using Microsoft.Extensions.DependencyInjection;
+
 using Reservas.Api.Contratos;
+using Reservas.Aplicacion.Correos;
+using Reservas.Aplicacion.Mantenimiento;
 
 namespace Reservas.Api.Tests;
 
@@ -64,6 +68,20 @@ public abstract class PruebaApi(ApiConBaseDeDatos api)
             $"/api/v1/reservas/gestion/{codigo}{(accion is null ? string.Empty : "/" + accion)}");
 
         return await Api.CrearCliente().SendAsync(peticion, Cancelacion);
+    }
+
+    /// <summary>Hace una pasada del proceso que envía los correos de la bandeja, como haría la API cada pocos segundos.</summary>
+    protected async Task<ResumenEnvio> ProcesarCorreosAsync()
+    {
+        await using var ambito = Api.Servicios.CreateAsyncScope();
+        return await ambito.ServiceProvider.GetRequiredService<ProcesarCorreos>().EjecutarAsync(Cancelacion);
+    }
+
+    /// <summary>Ejecuta una tarea de mantenimiento con los servicios reales de la API.</summary>
+    protected async Task<T> MantenimientoAsync<T>(Func<MantenimientoProgramado, CancellationToken, Task<T>> tarea)
+    {
+        await using var ambito = Api.Servicios.CreateAsyncScope();
+        return await tarea(ambito.ServiceProvider.GetRequiredService<MantenimientoProgramado>(), Cancelacion);
     }
 
     protected static async Task<ReservaRespuesta> LeerReservaAsync(HttpResponseMessage respuesta) =>

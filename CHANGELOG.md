@@ -6,6 +6,26 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 ## [Sin publicar]
 
 ### Añadido
+- Correos al cliente: solicitud de confirmación, confirmación, cancelación y recordatorio 24 horas
+  antes. Se guardan en una bandeja de salida en la misma transacción que la reserva y los envía un
+  proceso en segundo plano con reintentos espaciados (1 min, 5 min, 30 min, 2 h, 12 h) y abandono
+  tras seis fallos; varias instancias pueden vaciar la bandeja a la vez sin duplicar (ADR 0006).
+- Envío por SMTP con MailKit y Mailpit en el entorno local de Aspire (bandeja en el puerto 8025).
+- Tareas programadas: caducar reservas sin confirmar a los 30 minutos, programar recordatorios,
+  anonimizar clientes de reservas de más de 24 meses y purgar claves de idempotencia, tokens de
+  renovación y correos antiguos.
+- Derecho de supresión: `DELETE /api/v1/reservas/gestion/{codigo}` borra los datos personales del
+  cliente de una reserva que ya no está activa.
+- Tests: bandeja transaccional, reparto entre ocho procesos sin duplicados, reintentos con el reloj
+  simulado, tareas contra PostgreSQL, envío real contra Mailpit en un contenedor, recorrido del
+  cliente solo con lo que recibe por correo y los servicios en segundo plano arrancados con la API.
+
+### Cambiado
+- **El código de gestión ya no se devuelve al crear una reserva** (`Publico:MostrarCodigoGestion` es
+  `false` por defecto): solo llega en el enlace del correo, lo que hace que confirmar demuestre que
+  el cliente controla ese correo.
+- `AddInfraestructura` recibe la configuración (sección `Correo`); sin servidor, los correos solo se
+  anotan en el registro, sin su contenido.
 - Parte privada de la API para el personal del negocio: agenda del día, reservas apuntadas por
   teléfono o en persona (nacen confirmadas), y llegada, completar, no presentada y cancelar.
 - Configuración del local por su encargado (salas, mesas, horarios y cierres) y gestión de usuarios

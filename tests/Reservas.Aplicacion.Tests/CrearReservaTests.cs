@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Time.Testing;
 
+using Reservas.Aplicacion.Correos;
 using Reservas.Aplicacion.Disponibilidad;
 using Reservas.Aplicacion.ReservasPublicas;
 using Reservas.Dominio.Gestion;
@@ -20,7 +21,7 @@ public class CrearReservaTests
     public CrearReservaTests()
     {
         _negocios = new RepositorioNegociosFalso(_negocio, _local);
-        _casoDeUso = new CrearReserva(_negocios, new ServicioDisponibilidad(_negocios, _reservas), _reservas, _reloj);
+        _casoDeUso = new CrearReserva(_negocios, new ServicioDisponibilidad(_negocios, _reservas), _reservas, new OpcionesCorreo(), _reloj);
     }
 
     private static SolicitudCrearReserva Solicitud(string hora = "21:00", int comensales = 2, string slug = "bar-la-plaza", string email = "ana@example.com") =>
@@ -109,7 +110,7 @@ public class CrearReservaTests
         var reservas = new RepositorioReservasFalso();
         reservas.Sembrar(Escenario.ReservaPendiente(_negocio, local, Escenario.UnMesAntes));
         reservas.Sembrar(Escenario.ReservaPendiente(_negocio, local, Escenario.UnMesAntes)); // mismas mesas: las dos de la 1ª mesa
-        var casoDeUso = new CrearReserva(negocios, new ServicioDisponibilidad(negocios, reservas), reservas, _reloj);
+        var casoDeUso = new CrearReserva(negocios, new ServicioDisponibilidad(negocios, reservas), reservas, new OpcionesCorreo(), _reloj);
 
         // La mesa de 1 a 2 está ocupada, pero la de 1 a 4 sigue libre: aún cabe.
         (await casoDeUso.EjecutarAsync(Solicitud(), TestContext.Current.CancellationToken)).EsExito.ShouldBeTrue();
@@ -124,7 +125,7 @@ public class CrearReservaTests
         // queda ninguna libre y el tercer cálculo no encuentra hueco: no hace falta un tercer guardado.
         var reservas = new RepositorioReservasFalso { SimularQueOtraPeticionGana = true };
         var negocios = new RepositorioNegociosFalso(_negocio, Escenario.CrearLocal());
-        var casoDeUso = new CrearReserva(negocios, new ServicioDisponibilidad(negocios, reservas), reservas, _reloj);
+        var casoDeUso = new CrearReserva(negocios, new ServicioDisponibilidad(negocios, reservas), reservas, new OpcionesCorreo(), _reloj);
 
         var resultado = await casoDeUso.EjecutarAsync(Solicitud(), TestContext.Current.CancellationToken);
 
@@ -138,7 +139,7 @@ public class CrearReservaTests
         var local = Escenario.CrearLocal();
         var negocios = new RepositorioNegociosFalso(_negocio, local);
         var reservas = new FalsoQueFallaSoloLaPrimeraVez();
-        var casoDeUso = new CrearReserva(negocios, new ServicioDisponibilidad(negocios, reservas), reservas, _reloj);
+        var casoDeUso = new CrearReserva(negocios, new ServicioDisponibilidad(negocios, reservas), reservas, new OpcionesCorreo(), _reloj);
 
         var resultado = await casoDeUso.EjecutarAsync(Solicitud(), TestContext.Current.CancellationToken);
 
@@ -166,11 +167,14 @@ public class CrearReservaTests
 
         public int IntentosDeAgregar { get; private set; }
 
-        public async Task<Reservas.Dominio.Comun.Resultado> AgregarAsync(Reserva reserva, CancellationToken cancellationToken)
+        public async Task<Reservas.Dominio.Comun.Resultado> AgregarAsync(
+            Reserva reserva,
+            IReadOnlyCollection<Reservas.Dominio.Correos.CorreoPendiente> correos,
+            CancellationToken cancellationToken)
         {
             IntentosDeAgregar++;
             _interno.SimularQueOtraPeticionGana = IntentosDeAgregar == 1;
-            return await _interno.AgregarAsync(reserva, cancellationToken);
+            return await _interno.AgregarAsync(reserva, correos, cancellationToken);
         }
 
         public Task<Reserva?> ObtenerAsync(Guid id, CancellationToken cancellationToken) => _interno.ObtenerAsync(id, cancellationToken);
@@ -178,13 +182,27 @@ public class CrearReservaTests
         public Task<Reserva?> ObtenerPorCodigoAsync(string codigoGestion, CancellationToken cancellationToken) =>
             _interno.ObtenerPorCodigoAsync(codigoGestion, cancellationToken);
 
+        public Task<IReadOnlyList<Reserva>> ListarPendientesCaducadasAsync(DateTimeOffset ahora, int maximo, CancellationToken cancellationToken) =>
+            _interno.ListarPendientesCaducadasAsync(ahora, maximo, cancellationToken);
+
+        public Task<IReadOnlyList<Reserva>> ListarParaRecordatorioAsync(
+            Reservas.Dominio.Comun.IntervaloTiempo tramo,
+            int maximo,
+            CancellationToken cancellationToken) => _interno.ListarParaRecordatorioAsync(tramo, maximo, cancellationToken);
+
+        public Task<IReadOnlyList<Reserva>> ListarAnonimizablesAsync(DateTimeOffset creadasAntesDe, int maximo, CancellationToken cancellationToken) =>
+            _interno.ListarAnonimizablesAsync(creadasAntesDe, maximo, cancellationToken);
+
         public Task<IReadOnlyList<Reserva>> ListarPorInicioAsync(
             Guid negocioId,
             Reservas.Dominio.Comun.IntervaloTiempo tramo,
             CancellationToken cancellationToken) => _interno.ListarPorInicioAsync(negocioId, tramo, cancellationToken);
 
-        public Task<Reservas.Dominio.Comun.Resultado> ActualizarAsync(Reserva reserva, CancellationToken cancellationToken) =>
-            _interno.ActualizarAsync(reserva, cancellationToken);
+        public Task<Reservas.Dominio.Comun.Resultado> ActualizarAsync(
+            Reserva reserva,
+            IReadOnlyCollection<Reservas.Dominio.Correos.CorreoPendiente> correos,
+            CancellationToken cancellationToken) =>
+            _interno.ActualizarAsync(reserva, correos, cancellationToken);
 
         public Task<IReadOnlyList<Reservas.Dominio.Disponibilidad.OcupacionMesa>> ObtenerOcupacionesAsync(
             Guid negocioId,

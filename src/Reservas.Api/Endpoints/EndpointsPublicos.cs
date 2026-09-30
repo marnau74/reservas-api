@@ -84,7 +84,23 @@ public static class EndpointsPublicos
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict);
 
+        gestion.MapDelete(string.Empty, BorrarDatosAsync)
+            .RequireRateLimiting(LimitesPeticiones.Escritura)
+            .WithName("BorrarDatosCliente")
+            .WithSummary("Borra los datos personales del cliente de una reserva (derecho de supresión).")
+            .WithDescription("La reserva se conserva para las cuentas del negocio, pero sin nombre, correo ni teléfono. Solo con la reserva ya cancelada o terminada.")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
+
         return rutas;
+    }
+
+    private static async Task<IResult> BorrarDatosAsync(string codigo, BorrarDatosCliente casoDeUso, CancellationToken cancellationToken)
+    {
+        var resultado = await casoDeUso.EjecutarAsync(codigo, cancellationToken);
+
+        return resultado.EsFallo ? ProblemasApi.Desde(resultado.Error) : Results.NoContent();
     }
 
     private static async Task<IResult> ObtenerNegocioAsync(string slug, ConsultarNegocio consulta, CancellationToken cancellationToken)

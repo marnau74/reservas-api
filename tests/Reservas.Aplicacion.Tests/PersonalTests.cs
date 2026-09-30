@@ -2,6 +2,7 @@ using Microsoft.Extensions.Time.Testing;
 
 using Reservas.Aplicacion.Abstracciones;
 using Reservas.Aplicacion.Agenda;
+using Reservas.Aplicacion.Correos;
 using Reservas.Aplicacion.Disponibilidad;
 using Reservas.Aplicacion.Personal;
 
@@ -48,7 +49,7 @@ public class AislamientoEnCasosDeUsoTests
     public AislamientoEnCasosDeUsoTests()
     {
         var negocios = new RepositorioNegociosFalso(_negocio, _local);
-        _gestion = new GestionReservasPersonal(negocios, _reservas, new ServicioDisponibilidad(negocios, _reservas), _reloj);
+        _gestion = new GestionReservasPersonal(negocios, _reservas, new ServicioDisponibilidad(negocios, _reservas), new OpcionesCorreo(), _reloj);
         _reserva = Escenario.ReservaPendiente(_negocio, _local, Escenario.UnMesAntes);
         _reservas.Sembrar(_reserva);
     }

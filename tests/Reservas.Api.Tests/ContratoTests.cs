@@ -18,7 +18,7 @@ public partial class ContratoTests(ApiConBaseDeDatos api) : PruebaApi(api), ICla
     [
         "reserva.franja_no_disponible", "reserva.mesa_ocupada", "reserva.conflicto_concurrencia",
         "reserva.transicion_invalida", "reserva.caducada", "reserva.aun_no_es_hora", "reserva.no_caduca_aun",
-        "usuario.email_en_uso", "usuario.protegido", "usuario.ya_desactivado", "sala.con_mesas", "mesa.con_reservas",
+        "usuario.email_en_uso", "usuario.protegido", "usuario.ya_desactivado", "reserva.activa", "sala.con_mesas", "mesa.con_reservas",
     ];
 
     private static readonly string[] NoEncontrados =
@@ -81,7 +81,7 @@ public partial class ContratoTests(ApiConBaseDeDatos api) : PruebaApi(api), ICla
             ["/api/v1/negocios/{slug}"] = ["get"],
             ["/api/v1/negocios/{slug}/disponibilidad"] = ["get"],
             ["/api/v1/negocios/{slug}/reservas"] = ["post"],
-            ["/api/v1/reservas/gestion/{codigo}"] = ["get"],
+            ["/api/v1/reservas/gestion/{codigo}"] = ["get", "delete"],
             ["/api/v1/reservas/gestion/{codigo}/confirmar"] = ["post"],
             ["/api/v1/reservas/gestion/{codigo}/cancelar"] = ["post"],
         };

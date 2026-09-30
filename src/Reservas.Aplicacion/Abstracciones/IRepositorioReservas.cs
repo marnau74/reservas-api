@@ -1,4 +1,5 @@
 using Reservas.Dominio.Comun;
+using Reservas.Dominio.Correos;
 using Reservas.Dominio.Disponibilidad;
 using Reservas.Dominio.Gestion;
 
@@ -20,8 +21,9 @@ public interface IRepositorioReservas
     /// Guarda una reserva nueva reservando sus mesas. Si otra reserva activa ya ocupa alguna a
     /// esa hora, no guarda nada y devuelve <c>reserva.mesa_ocupada</c>: lo garantiza la base de
     /// datos, no una comprobación previa, así que es correcto incluso con peticiones simultáneas.
+    /// Los <paramref name="correos"/> se guardan en la misma transacción: o hay reserva y correos, o nada.
     /// </summary>
-    Task<Resultado> AgregarAsync(Reserva reserva, CancellationToken cancellationToken);
+    Task<Resultado> AgregarAsync(Reserva reserva, IReadOnlyCollection<CorreoPendiente> correos, CancellationToken cancellationToken);
 
     /// <summary>Busca una reserva por su identificador, o <c>null</c> si no existe.</summary>
     Task<Reserva?> ObtenerAsync(Guid id, CancellationToken cancellationToken);
@@ -31,9 +33,10 @@ public interface IRepositorioReservas
 
     /// <summary>
     /// Guarda los cambios de una reserva obtenida con <see cref="ObtenerAsync"/>. Si alguien la
-    /// modificó entretanto, no guarda nada y devuelve <c>reserva.conflicto_concurrencia</c>.
+    /// modificó entretanto, no guarda nada y devuelve <c>reserva.conflicto_concurrencia</c>. Los
+    /// <paramref name="correos"/> se guardan en la misma transacción que el cambio.
     /// </summary>
-    Task<Resultado> ActualizarAsync(Reserva reserva, CancellationToken cancellationToken);
+    Task<Resultado> ActualizarAsync(Reserva reserva, IReadOnlyCollection<CorreoPendiente> correos, CancellationToken cancellationToken);
 
     /// <summary>Todas las reservas de un negocio cuyo inicio cae en el tramo, por orden de hora (sin seguimiento: solo lectura).</summary>
     Task<IReadOnlyList<Reserva>> ListarPorInicioAsync(Guid negocioId, IntervaloTiempo tramo, CancellationToken cancellationToken);
@@ -43,4 +46,15 @@ public interface IRepositorioReservas
         Guid negocioId,
         IntervaloTiempo ventana,
         CancellationToken cancellationToken);
+
+    // --- Tareas programadas: sin sesión, sobre todos los negocios. Devuelven reservas con seguimiento. ---
+
+    /// <summary>Reservas pendientes cuyo plazo de confirmación ya pasó.</summary>
+    Task<IReadOnlyList<Reserva>> ListarPendientesCaducadasAsync(DateTimeOffset ahora, int maximo, CancellationToken cancellationToken);
+
+    /// <summary>Reservas confirmadas que empiezan dentro del tramo y todavía no tienen recordatorio programado.</summary>
+    Task<IReadOnlyList<Reserva>> ListarParaRecordatorioAsync(IntervaloTiempo tramo, int maximo, CancellationToken cancellationToken);
+
+    /// <summary>Reservas ya no activas, creadas antes de la fecha, con los datos del cliente todavía sin borrar.</summary>
+    Task<IReadOnlyList<Reserva>> ListarAnonimizablesAsync(DateTimeOffset creadasAntesDe, int maximo, CancellationToken cancellationToken);
 }

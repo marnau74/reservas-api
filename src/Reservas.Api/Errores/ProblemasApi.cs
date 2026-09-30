@@ -31,6 +31,7 @@ public static class ProblemasApi
         ["reserva.franja_no_disponible"] = StatusCodes.Status409Conflict,
         ["usuario.email_en_uso"] = StatusCodes.Status409Conflict,
         ["usuario.protegido"] = StatusCodes.Status409Conflict,
+        ["reserva.activa"] = StatusCodes.Status409Conflict,
         ["usuario.ya_desactivado"] = StatusCodes.Status409Conflict,
         ["sala.con_mesas"] = StatusCodes.Status409Conflict,
         ["mesa.con_reservas"] = StatusCodes.Status409Conflict,

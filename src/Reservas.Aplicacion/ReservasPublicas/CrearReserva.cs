@@ -1,4 +1,5 @@
 using Reservas.Aplicacion.Abstracciones;
+using Reservas.Aplicacion.Correos;
 using Reservas.Aplicacion.Disponibilidad;
 using Reservas.Dominio.Comun;
 using Reservas.Dominio.Gestion;
@@ -26,6 +27,7 @@ public sealed class CrearReserva(
     IRepositorioNegocios negocios,
     ServicioDisponibilidad disponibilidad,
     IRepositorioReservas reservas,
+    OpcionesCorreo opcionesCorreo,
     TimeProvider reloj)
 {
     public async Task<Resultado<ReservaConNegocio>> EjecutarAsync(SolicitudCrearReserva solicitud, CancellationToken cancellationToken)
@@ -44,7 +46,7 @@ public sealed class CrearReserva(
             return Resultado.Fallo<ReservaConNegocio>(cliente.Error);
         }
 
-        return await new CreadorReservas(disponibilidad, reservas, reloj).CrearAsync(
+        return await new CreadorReservas(disponibilidad, reservas, opcionesCorreo, reloj).CrearAsync(
             negocio, solicitud.Fecha, solicitud.Hora, solicitud.Comensales, cliente.Valor, OrigenReserva.Publica, cancellationToken);
     }
 }

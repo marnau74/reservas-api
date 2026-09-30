@@ -33,6 +33,7 @@ internal sealed class ReservaConfiguracion : IEntityTypeConfiguration<Reserva>
         builder.HasIndex(r => r.CodigoGestion).IsUnique();
 
         builder.Property(r => r.CreadaEn).IsRequired();
+        builder.Property(r => r.RecordatorioProgramado).IsRequired();
 
         builder.OwnsOne(r => r.Cliente, cliente =>
         {

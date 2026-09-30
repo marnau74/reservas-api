@@ -1,5 +1,7 @@
 using Reservas.Aplicacion.Abstracciones;
+using Reservas.Aplicacion.Correos;
 using Reservas.Dominio.Comun;
+using Reservas.Dominio.Correos;
 using Reservas.Dominio.Gestion;
 using Reservas.Dominio.Negocios;
 
@@ -22,7 +24,7 @@ public sealed class ConsultarReserva(IRepositorioReservas reservas, IRepositorio
 }
 
 /// <summary>Confirma una reserva pendiente con el código del enlace del correo.</summary>
-public sealed class ConfirmarReserva(IRepositorioReservas reservas, IRepositorioNegocios negocios, TimeProvider reloj)
+public sealed class ConfirmarReserva(IRepositorioReservas reservas, IRepositorioNegocios negocios, OpcionesCorreo opcionesCorreo, TimeProvider reloj)
 {
     public async Task<Resultado<ReservaConNegocio>> EjecutarAsync(string codigo, CancellationToken cancellationToken)
     {
@@ -32,12 +34,13 @@ public sealed class ConfirmarReserva(IRepositorioReservas reservas, IRepositorio
             return Resultado.Fallo<ReservaConNegocio>(ErroresAplicacion.ReservaNoEncontrada);
         }
 
-        return await Componer.TrasCambioAsync(reserva, reserva.Confirmar(reloj.GetUtcNow()), reservas, negocios, cancellationToken);
+        return await Componer.TrasCambioAsync(
+            reserva, reserva.Confirmar(reloj.GetUtcNow()), reservas, negocios, TipoCorreo.Confirmacion, opcionesCorreo, reloj.GetUtcNow(), cancellationToken);
     }
 }
 
 /// <summary>Cancela una reserva con el código del enlace, liberando sus mesas.</summary>
-public sealed class CancelarReserva(IRepositorioReservas reservas, IRepositorioNegocios negocios)
+public sealed class CancelarReserva(IRepositorioReservas reservas, IRepositorioNegocios negocios, OpcionesCorreo opcionesCorreo, TimeProvider reloj)
 {
     public async Task<Resultado<ReservaConNegocio>> EjecutarAsync(string codigo, CancellationToken cancellationToken)
     {
@@ -47,7 +50,8 @@ public sealed class CancelarReserva(IRepositorioReservas reservas, IRepositorioN
             return Resultado.Fallo<ReservaConNegocio>(ErroresAplicacion.ReservaNoEncontrada);
         }
 
-        return await Componer.TrasCambioAsync(reserva, reserva.Cancelar(), reservas, negocios, cancellationToken);
+        return await Componer.TrasCambioAsync(
+            reserva, reserva.Cancelar(), reservas, negocios, TipoCorreo.Cancelacion, opcionesCorreo, reloj.GetUtcNow(), cancellationToken);
     }
 }
 
@@ -66,11 +70,18 @@ internal static class Componer
     }
 
     /// <summary>Guarda el cambio de estado si la transición de dominio fue válida y devuelve la reserva resultante.</summary>
+    /// <summary>
+    /// Guarda un cambio de estado ya aplicado a la reserva, junto con el correo que corresponda (si
+    /// lo hay) en la misma transacción.
+    /// </summary>
     public static async Task<Resultado<ReservaConNegocio>> TrasCambioAsync(
         Reserva reserva,
         Resultado transicion,
         IRepositorioReservas reservas,
         IRepositorioNegocios negocios,
+        TipoCorreo? correo,
+        OpcionesCorreo opcionesCorreo,
+        DateTimeOffset ahora,
         CancellationToken cancellationToken)
     {
         if (transicion.EsFallo)
@@ -78,10 +89,18 @@ internal static class Componer
             return Resultado.Fallo<ReservaConNegocio>(transicion.Error);
         }
 
-        var guardado = await reservas.ActualizarAsync(reserva, cancellationToken);
+        var completa = await ConNegocioAsync(reserva, negocios, cancellationToken);
+        if (completa.EsFallo)
+        {
+            return completa;
+        }
 
-        return guardado.EsFallo
-            ? Resultado.Fallo<ReservaConNegocio>(guardado.Error)
-            : await ConNegocioAsync(reserva, negocios, cancellationToken);
+        CorreoPendiente[] correos = correo is { } tipo
+            ? [PlantillasCorreo.Crear(tipo, reserva, completa.Valor.Negocio, opcionesCorreo, ahora)]
+            : [];
+
+        var guardado = await reservas.ActualizarAsync(reserva, correos, cancellationToken);
+
+        return guardado.EsFallo ? Resultado.Fallo<ReservaConNegocio>(guardado.Error) : completa;
     }
 }

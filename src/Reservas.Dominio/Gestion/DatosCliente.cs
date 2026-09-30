@@ -17,6 +17,11 @@ public sealed record DatosCliente
         Telefono = telefono;
     }
 
+    /// <summary>Lo que queda de un cliente cuyos datos se han borrado (RGPD): la reserva se conserva, la persona no.</summary>
+    public static readonly DatosCliente Anonimo = new("Cliente anonimizado", "anonimizado@invalid", null);
+
+    public bool EstaAnonimizado => Email == Anonimo.Email;
+
     public string Nombre { get; }
 
     public string Email { get; }

@@ -33,8 +33,8 @@ public class FiltroPorNegocioTests(ServidorPostgres servidor) : BaseDeDatosTest(
         await using var reservas = NuevoContexto();
         var reservaA = NuevaReserva(mesas: Mesa1);
         var reservaB = Dominio.Gestion.Reserva.Crear(_otro.Negocio.Id, Cena, 2, Cliente(2), [_otro.Mesas[0].Id], Dominio.Gestion.OrigenReserva.Personal, Ahora).Valor;
-        (await new RepositorioReservas(reservas).AgregarAsync(reservaA, TestContext.Current.CancellationToken)).EsExito.ShouldBeTrue();
-        (await new RepositorioReservas(reservas).AgregarAsync(reservaB, TestContext.Current.CancellationToken)).EsExito.ShouldBeTrue();
+        (await new RepositorioReservas(reservas).AgregarAsync(reservaA, [], TestContext.Current.CancellationToken)).EsExito.ShouldBeTrue();
+        (await new RepositorioReservas(reservas).AgregarAsync(reservaB, [], TestContext.Current.CancellationToken)).EsExito.ShouldBeTrue();
     }
 
     [Fact]
@@ -272,7 +272,7 @@ public class RepositoriosPersonalTests(ServidorPostgres servidor) : BaseDeDatosT
     {
         await using (var db = NuevoContexto())
         {
-            (await new RepositorioReservas(db).AgregarAsync(NuevaReserva(mesas: Mesa1), TestContext.Current.CancellationToken)).EsExito.ShouldBeTrue();
+            (await new RepositorioReservas(db).AgregarAsync(NuevaReserva(mesas: Mesa1), [], TestContext.Current.CancellationToken)).EsExito.ShouldBeTrue();
         }
 
         await using var consulta = NuevoContexto();

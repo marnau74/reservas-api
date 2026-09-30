@@ -4,8 +4,8 @@ API de reservas para bares y restaurantes, en .NET 10. Varios negocios en la mis
 disponibilidad por franjas, reservas con confirmación por correo y gestión del día a día
 del servicio.
 
-> En construcción: dominio, persistencia, API pública y parte del personal hechos; faltan los
-> correos, las tareas programadas y el despliegue.
+> En construcción: dominio, persistencia, API pública, parte del personal, correos y tareas
+> programadas hechos; falta la calidad final y el despliegue.
 
 ## El problema central
 
@@ -43,9 +43,9 @@ curl -X POST http://localhost:5052/api/v1/negocios/bar-la-plaza/reservas \
   -H "Content-Type: application/json" \
   -H "Idempotency-Key: $(uuidgen)" \
   -d '{"fecha":"2026-10-03","hora":"21:00","comensales":2,"cliente":{"nombre":"Ana Pérez","email":"ana@example.com"}}'
-# -> 201, con la reserva pendiente y su codigoGestion
+# -> 201, con la reserva pendiente. El código llega por correo (en local, en Mailpit: http://localhost:8025)
 
-# 3. Confirmarla (o consultarla, o cancelarla) con ese código
+# 3. Confirmarla (o consultarla, o cancelarla) con el código del enlace del correo
 curl -X POST http://localhost:5052/api/v1/reservas/gestion/CODIGO/confirmar
 ```
 
@@ -90,6 +90,23 @@ Cada negocio ve solo lo suyo, y esa garantía la dan dos defensas independientes
 la base de datos y una comprobación en cada caso de uso): con el identificador de algo de otro
 negocio se recibe un 404, como si no existiera. Las sesiones, los roles y el aislamiento están
 explicados en el [ADR 0005](docs/adr/0005-sesion-del-personal-y-aislamiento-por-negocio.md).
+
+## Correos y tareas programadas
+
+Al reservar por internet, el cliente recibe un correo con el enlace para confirmar (la respuesta de
+la API **no** trae el código secreto: solo llega por correo). También recibe la confirmación, el
+aviso de cancelación y un recordatorio 24 horas antes. Los correos no se envían dentro de la
+petición: se guardan en la base de datos en la misma transacción que la reserva y un proceso aparte
+los envía con reintentos, así que un servidor de correo caído no pierde reservas ni avisos
+([ADR 0006](docs/adr/0006-correos-con-bandeja-de-salida-y-tareas-programadas.md)).
+
+En local, `dotnet run --project src/Reservas.AppHost` levanta también **Mailpit**: los correos que
+envía la API se leen en http://localhost:8025, sin que salga nada a internet.
+
+Cada minuto se caducan las reservas sin confirmar (30 minutos de plazo) y se programan los
+recordatorios; cada hora se anonimizan los clientes de reservas de más de 24 meses y se purgan las
+tablas que crecen sin parar. El cliente puede pedir que se borren sus datos con
+`DELETE /api/v1/reservas/gestion/{codigo}`.
 
 ## No reservar dos veces la misma mesa
 
