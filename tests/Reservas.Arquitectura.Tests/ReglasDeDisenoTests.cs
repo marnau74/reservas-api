@@ -38,10 +38,12 @@ public class ReglasDeDisenoTests
     {
         var resultado = Types.InAssembly(Api)
             .That().DoNotHaveName("Program")
+            .And().DoNotResideInNamespace("Reservas.Api.Arranque")
             .ShouldNot().HaveDependencyOnAny("Microsoft.EntityFrameworkCore", "Npgsql")
             .GetResult();
 
-        // El middleware de idempotencia y las tareas dependen de puertos de la aplicación, no de EF Core.
+        // Solo el arranque (Program y el espacio Arranque: migraciones y datos de demostración) habla con la
+        // base de datos; el middleware de idempotencia y las tareas dependen de puertos de la aplicación.
         resultado.IsSuccessful.ShouldBeTrue(Explicar(resultado));
     }
 

@@ -36,6 +36,9 @@ public class ApiConBaseDeDatos(ServidorPostgres servidor) : IAsyncLifetime
     /// <summary>Recoge los correos que la API «envía», en lugar de mandarlos a ningún servidor.</summary>
     public EnviadorCorreoFalso Enviador { get; } = new();
 
+    /// <summary>Entorno de ASP.NET Core en el que arranca la API. Por defecto, desarrollo.</summary>
+    protected virtual string Entorno => "Development";
+
     public string CadenaConexion { get; private set; } = string.Empty;
 
     /// <summary>
@@ -84,7 +87,7 @@ public class ApiConBaseDeDatos(ServidorPostgres servidor) : IAsyncLifetime
     {
         // Base de datos vacía y sin migrar: la migra la API al arrancar.
         CadenaConexion = await servidor.CrearBaseDeDatosSinMigrarAsync();
-        _fabrica = new Fabrica(CadenaConexion, Ajustes, Reloj, Enviador);
+        _fabrica = new Fabrica(CadenaConexion, Ajustes, Reloj, Enviador, Entorno);
 
         // Crear un cliente arranca la API, que crea las tablas; después ya se pueden sembrar datos.
         using var arranque = _fabrica.CreateClient();
@@ -114,11 +117,13 @@ public class ApiConBaseDeDatos(ServidorPostgres servidor) : IAsyncLifetime
         string cadenaConexion,
         IReadOnlyDictionary<string, string?> ajustes,
         FakeTimeProvider reloj,
-        EnviadorCorreoFalso enviador)
+        EnviadorCorreoFalso enviador,
+        string entorno)
         : WebApplicationFactory<Program>
     {
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
+            builder.UseEnvironment(entorno);
             builder.UseSetting("ConnectionStrings:reservas", cadenaConexion);
 
             foreach (var (clave, valor) in ajustes)
