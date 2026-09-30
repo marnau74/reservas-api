@@ -14,8 +14,10 @@ using Reservas.Api.Endpoints;
 using Reservas.Api.Idempotencia;
 using Reservas.Api.Limites;
 using Reservas.Api.Seguridad;
+using Reservas.Api.Tareas;
 using Reservas.Api.Validacion;
 using Reservas.Aplicacion;
+using Reservas.Aplicacion.Correos;
 using Reservas.Infraestructura;
 using Reservas.Infraestructura.Persistencia;
 
@@ -37,8 +39,24 @@ builder.EnrichNpgsqlDbContext<ReservasDbContext>();
 
 builder.Services.TryAddSingleton(TimeProvider.System);
 builder.Services.AddSeguridad(builder.Configuration, builder.Environment.IsDevelopment());
-builder.Services.AddInfraestructura();
-builder.Services.AddAplicacion();
+builder.Services.AddInfraestructura(builder.Configuration);
+
+var opcionesCorreo = builder.Configuration.GetSection("Correo").Get<OpcionesCorreo>() ?? new OpcionesCorreo();
+if (!opcionesCorreo.UrlGestion.Contains(OpcionesCorreo.MarcaCodigo, StringComparison.Ordinal))
+{
+    throw new InvalidOperationException($"«Correo:UrlGestion» debe contener {OpcionesCorreo.MarcaCodigo}, que se sustituye por el código de cada reserva.");
+}
+
+builder.Services.AddAplicacion(correo: opcionesCorreo);
+
+// Envío de correos y mantenimiento en segundo plano. Se pueden apagar por instancia.
+var opcionesTareas = builder.Configuration.GetSection(OpcionesTareas.Seccion).Get<OpcionesTareas>() ?? new OpcionesTareas();
+builder.Services.AddSingleton(opcionesTareas);
+if (opcionesTareas.Activas)
+{
+    builder.Services.AddHostedService<ProcesadorCorreosServicio>();
+    builder.Services.AddHostedService<MantenimientoServicio>();
+}
 
 builder.Services.Configure<OpcionesPublicas>(builder.Configuration.GetSection(OpcionesPublicas.Seccion));
 builder.Services.AddScoped<IValidator<SolicitudReservaDto>, ValidadorSolicitudReserva>();
