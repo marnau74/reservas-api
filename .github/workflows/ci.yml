@@ -27,6 +27,30 @@ jobs:
         run: dotnet format Reservas.slnx --verify-no-changes --no-restore --exclude src/Reservas.Infraestructura/Persistencia/Migraciones
       - name: Compilar (avisos como errores)
         run: dotnet build Reservas.slnx --no-restore -c Release
-      # Los tests de integración usan Testcontainers: los runners de GitHub traen Docker.
+      # Cada proyecto de tests se ejecuta por separado: así falla en el proyecto concreto y el
+      # resultado no depende de cómo el SDK enlace con el ejecutor de pruebas.
+      # Los de integración usan Testcontainers (PostgreSQL y Mailpit): los runners de GitHub traen Docker.
       - name: Tests
-        run: dotnet test --solution Reservas.slnx --no-build -c Release
+        run: |
+          for proyecto in tests/*.Tests/; do
+            echo "::group::${proyecto}"
+            dotnet run --project "${proyecto}" --no-build -c Release || exit 1
+            echo "::endgroup::"
+          done
+
+  dependencias:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+      - name: Paquetes con vulnerabilidades conocidas (incluidos los transitivos)
+        run: |
+          dotnet restore Reservas.slnx
+          dotnet list Reservas.slnx package --vulnerable --include-transitive 2>&1 | tee vulnerabilidades.txt
+          if grep -qE '^\s+>' vulnerabilidades.txt; then
+            echo "Hay paquetes vulnerables" && exit 1
+          fi
+      - name: Paquetes en desuso
+        run: dotnet list Reservas.slnx package --deprecated

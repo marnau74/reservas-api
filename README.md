@@ -4,8 +4,8 @@ API de reservas para bares y restaurantes, en .NET 10. Varios negocios en la mis
 disponibilidad por franjas, reservas con confirmación por correo y gestión del día a día
 del servicio.
 
-> En construcción: dominio, persistencia, API pública, parte del personal, correos y tareas
-> programadas hechos; falta la calidad final y el despliegue.
+> En construcción: dominio, persistencia, API pública, parte del personal, correos, tareas
+> programadas y controles de calidad hechos; falta el despliegue.
 
 ## El problema central
 
@@ -123,6 +123,23 @@ Al probarlo aparecieron interbloqueos entre las peticiones que compiten, y la so
 hacerlas hacer cola por mesa. Está explicado, con lo que no funcionó, en el
 [ADR 0003](docs/adr/0003-no-solapar-reservas-en-postgresql.md).
 
+## Calidad
+
+- **Tests de verdad, no de mentira:** se ejecutan contra PostgreSQL 17 y Mailpit reales en
+  contenedores (Testcontainers), no contra una base de datos en memoria: la garantía de no solapar
+  reservas es una restricción de PostgreSQL y una base falsa no la tendría. Las reglas que más
+  importan se han comprobado rompiéndolas a propósito para ver que algún test falla.
+- **Arquitectura comprobada:** un proyecto de tests verifica la dirección de las dependencias entre
+  capas y otras reglas de diseño (los endpoints no llegan a la base de datos, el dominio no expone
+  setters ni define excepciones…). Si alguien las rompe, falla la compilación de los tests.
+- **Contrato de la API versionado:** el OpenAPI está guardado en el repositorio y un test lo compara
+  con el que publica la API. Cualquier cambio de rutas o respuestas es visible en una revisión y no
+  se cuela por accidente.
+- **Seguridad:** CodeQL con el conjunto `security-extended`, revisión de paquetes vulnerables y en
+  desuso en cada cambio, Dependabot, y un test que recorre todas las rutas y falla si una de la parte
+  privada no exige sesión o si una que escribe no tiene límite de peticiones.
+- **Avisos como errores** y formato comprobado en la integración continua.
+
 ## Stack
 
 .NET 10 · ASP.NET Core (minimal APIs) · EF Core · PostgreSQL · .NET Aspire · OpenTelemetry ·
@@ -134,7 +151,14 @@ Requiere el SDK de .NET 10 y Docker.
 
 ```bash
 dotnet run --project src/Reservas.AppHost   # PostgreSQL + API, con el panel de Aspire
-dotnet test --solution Reservas.slnx        # tests
+dotnet run --project tests/Reservas.Dominio.Tests   # tests de un proyecto (los de integración piden Docker)
+```
+
+Cada proyecto de `tests/` es un ejecutable. La integración continua los ejecuta uno a uno; para
+lanzar todos en local:
+
+```bash
+for proyecto in tests/*.Tests/; do dotnet run --project "$proyecto" || break; done
 ```
 
 ## Estructura
