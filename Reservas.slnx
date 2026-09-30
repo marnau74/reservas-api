@@ -1,0 +1,15 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Reservas.Api/Reservas.Api.csproj" />
+    <Project Path="src/Reservas.Aplicacion/Reservas.Aplicacion.csproj" />
+    <Project Path="src/Reservas.AppHost/Reservas.AppHost.csproj" />
+    <Project Path="src/Reservas.Dominio/Reservas.Dominio.csproj" />
+    <Project Path="src/Reservas.Infraestructura/Reservas.Infraestructura.csproj" />
+    <Project Path="src/Reservas.ServiceDefaults/Reservas.ServiceDefaults.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Reservas.Api.Tests/Reservas.Api.Tests.csproj" />
+    <Project Path="tests/Reservas.Arquitectura.Tests/Reservas.Arquitectura.Tests.csproj" />
+    <Project Path="tests/Reservas.Dominio.Tests/Reservas.Dominio.Tests.csproj" />
+  </Folder>
+</Solution>
