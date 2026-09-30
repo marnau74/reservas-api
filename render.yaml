@@ -1,0 +1,46 @@
+# Plano de despliegue para Render (https://render.com/docs/blueprint-spec).
+# La base de datos es Neon (PostgreSQL gestionado): se crea aparte y su cadena de conexión se pega
+# en el panel de Render, donde se guarda como secreto. Los pasos, en docs/despliegue.md.
+services:
+  - type: web
+    name: reservas-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+
+      # Base de datos (Neon). Usar la cadena DIRECTA, sin «-pooler»: las migraciones y las colas
+      # por mesa necesitan sesiones normales de PostgreSQL.
+      - key: ConnectionStrings__reservas
+        sync: false
+      # Una sola instancia y sin paso previo al despliegue en el plan gratuito: la API migra al arrancar.
+      - key: BaseDeDatos__MigrarAlArrancar
+        value: "true"
+
+      # Clave con la que se firman los tokens de sesión. Render genera una aleatoria y la conserva.
+      - key: Jwt__Clave
+        generateValue: true
+
+      # Detrás del proxy de Render, la IP real del cliente llega en X-Forwarded-For.
+      - key: Proxy__ConfiarEnCabecerasReenviadas
+        value: "true"
+
+      # Negocio ficticio, cuentas de personal y unas reservas de ejemplo. Todo es de mentira.
+      - key: Demo__Sembrar
+        value: "true"
+      - key: Demo__Contrasena
+        sync: false
+
+      # Sin servidor de correo, el código de la reserva no puede llegar por correo: se devuelve en la
+      # respuesta para poder probar el flujo completo. Con un servidor SMTP configurado, ponerlo en "false".
+      - key: Publico__MostrarCodigoGestion
+        value: "true"
+
+      # Web que llama a la API desde el navegador (sin barra final) y dirección de su página de gestión.
+      - key: Cors__Origenes__0
+        sync: false
+      - key: Correo__UrlGestion
+        sync: false
