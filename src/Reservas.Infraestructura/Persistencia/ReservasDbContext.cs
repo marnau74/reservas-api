@@ -22,6 +22,8 @@ public sealed class ReservasDbContext(DbContextOptions<ReservasDbContext> opcion
 
     public DbSet<OcupacionMesaEntidad> OcupacionesMesa => Set<OcupacionMesaEntidad>();
 
+    public DbSet<ClaveIdempotenciaEntidad> ClavesIdempotencia => Set<ClaveIdempotenciaEntidad>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         ArgumentNullException.ThrowIfNull(modelBuilder);

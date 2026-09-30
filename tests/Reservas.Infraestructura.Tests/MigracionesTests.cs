@@ -40,7 +40,7 @@ public class MigracionesTests(ServidorPostgres servidor) : BaseDeDatosTest(servi
         var tablas = await ConsultarListaAsync(
             "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name <> '__EFMigrationsHistory' ORDER BY 1");
 
-        tablas.ShouldBe(["cierres", "horarios", "mesas", "negocios", "ocupaciones_mesa", "reservas", "salas"]);
+        tablas.ShouldBe(["cierres", "claves_idempotencia", "horarios", "mesas", "negocios", "ocupaciones_mesa", "reservas", "salas"]);
     }
 
     [Fact]

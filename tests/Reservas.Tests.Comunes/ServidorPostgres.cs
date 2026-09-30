@@ -21,7 +21,9 @@ namespace Reservas.Tests.Comunes;
 /// </remarks>
 public sealed class ServidorPostgres : IAsyncDisposable
 {
-    private readonly PostgreSqlContainer _contenedor = new PostgreSqlBuilder("postgres:17-alpine").Build();
+    private readonly PostgreSqlContainer _contenedor = new PostgreSqlBuilder("postgres:17-alpine")
+        .WithCommand("-c", "max_connections=300")
+        .Build();
     private readonly SemaphoreSlim _arranque = new(1, 1);
     private bool _iniciado;
 
@@ -51,7 +53,9 @@ public sealed class ServidorPostgres : IAsyncDisposable
             await crear.ExecuteNonQueryAsync();
         }
 
-        return new NpgsqlConnectionStringBuilder(administrador) { Database = nombre }.ConnectionString;
+        // Sin pool de conexiones: cada test tiene su propia base de datos y, con pool, cada una
+        // dejaría conexiones abiertas hasta agotar las del servidor.
+        return new NpgsqlConnectionStringBuilder(administrador) { Database = nombre, Pooling = false }.ConnectionString;
     }
 
     /// <summary>Un contexto nuevo sobre la base de datos indicada (cada uno es una unidad de trabajo independiente).</summary>
