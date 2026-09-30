@@ -56,11 +56,14 @@ public sealed class Reserva
 
     public int Comensales { get; }
 
-    public DatosCliente Cliente { get; }
+    public DatosCliente Cliente { get; private set; }
 
     public IReadOnlyList<Guid> MesaIds => _mesaIds;
 
     public EstadoReserva Estado { get; private set; }
+
+    /// <summary>Ya se ha programado el correo de recordatorio: solo se manda uno por reserva.</summary>
+    public bool RecordatorioProgramado { get; private set; }
 
     /// <summary>Secreto del enlace del correo para que el cliente consulte o cancele su reserva.</summary>
     public string CodigoGestion { get; }
@@ -180,6 +183,33 @@ public sealed class Reserva
         }
 
         Estado = EstadoReserva.NoPresentada;
+        return Resultado.Exito();
+    }
+
+    /// <summary>Anota que se ha programado el recordatorio. Solo tiene sentido en una reserva confirmada.</summary>
+    public Resultado MarcarRecordatorioProgramado()
+    {
+        if (Estado != EstadoReserva.Confirmada || RecordatorioProgramado)
+        {
+            return Resultado.Fallo(ErroresReserva.TransicionInvalida);
+        }
+
+        RecordatorioProgramado = true;
+        return Resultado.Exito();
+    }
+
+    /// <summary>
+    /// Borra los datos personales del cliente conservando la reserva (para las cuentas del negocio).
+    /// Solo cuando ya no está activa: no se puede borrar el contacto de alguien que va a venir.
+    /// </summary>
+    public Resultado Anonimizar()
+    {
+        if (OcupaMesas)
+        {
+            return Resultado.Fallo(ErroresReserva.ReservaActiva);
+        }
+
+        Cliente = DatosCliente.Anonimo with { }; // copia: EF no admite que dos reservas compartan un mismo objeto
         return Resultado.Exito();
     }
 

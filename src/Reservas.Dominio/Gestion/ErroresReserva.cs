@@ -37,4 +37,7 @@ public static class ErroresReserva
 
     public static readonly ErrorDominio ConflictoConcurrencia =
         new("reserva.conflicto_concurrencia", "La reserva ha cambiado mientras se procesaba esta operación. Inténtalo de nuevo.");
+
+    public static readonly ErrorDominio ReservaActiva =
+        new("reserva.activa", "La reserva sigue activa: cancélala antes de borrar los datos del cliente.");
 }
