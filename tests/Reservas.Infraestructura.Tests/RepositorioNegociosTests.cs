@@ -101,7 +101,7 @@ public class RepositorioNegociosTests(ServidorPostgres servidor) : BaseDeDatosTe
         var reserva = NuevaReserva();
         await using (var db = NuevoContexto())
         {
-            (await new RepositorioReservas(db).AgregarAsync(reserva, TestContext.Current.CancellationToken)).EsExito.ShouldBeTrue();
+            (await new RepositorioReservas(db).AgregarAsync(reserva, [], TestContext.Current.CancellationToken)).EsExito.ShouldBeTrue();
         }
 
         await using var consulta = NuevoContexto();

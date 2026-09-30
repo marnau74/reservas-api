@@ -17,7 +17,7 @@ public class RepositorioReservasTests(ServidorPostgres servidor) : BaseDeDatosTe
     private async Task<Resultado> Agregar(Reserva reserva)
     {
         await using var db = NuevoContexto();
-        return await new RepositorioReservas(db).AgregarAsync(reserva, TestContext.Current.CancellationToken);
+        return await new RepositorioReservas(db).AgregarAsync(reserva, [], TestContext.Current.CancellationToken);
     }
 
     private async Task<int> ContarAsync(Func<ReservasDbContext, IQueryable<object>> consulta)
@@ -148,7 +148,7 @@ public class RepositorioReservasTests(ServidorPostgres servidor) : BaseDeDatosTe
             var repositorio = new RepositorioReservas(db);
             var guardada = (await repositorio.ObtenerAsync(reserva.Id, TestContext.Current.CancellationToken))!;
             guardada.Cancelar().EsExito.ShouldBeTrue();
-            (await repositorio.ActualizarAsync(guardada, TestContext.Current.CancellationToken)).EsExito.ShouldBeTrue();
+            (await repositorio.ActualizarAsync(guardada, [], TestContext.Current.CancellationToken)).EsExito.ShouldBeTrue();
         }
 
         (await Agregar(NuevaReserva())).EsExito.ShouldBeTrue();
@@ -166,7 +166,7 @@ public class RepositorioReservasTests(ServidorPostgres servidor) : BaseDeDatosTe
             var guardada = (await repositorio.ObtenerAsync(reserva.Id, TestContext.Current.CancellationToken))!;
             guardada.Sentar().EsExito.ShouldBeTrue();
             guardada.Completar().EsExito.ShouldBeTrue();
-            await repositorio.ActualizarAsync(guardada, TestContext.Current.CancellationToken);
+            await repositorio.ActualizarAsync(guardada, [], TestContext.Current.CancellationToken);
         }
 
         (await ContarAsync(db => db.Reservas.Where(r => r.Estado == EstadoReserva.Completada))).ShouldBe(1);
@@ -272,8 +272,8 @@ public class RepositorioReservasTests(ServidorPostgres servidor) : BaseDeDatosTe
         deA.Confirmar(Ahora).EsExito.ShouldBeTrue();
         deB.Cancelar().EsExito.ShouldBeTrue();
 
-        (await repositorioA.ActualizarAsync(deA, TestContext.Current.CancellationToken)).EsExito.ShouldBeTrue();
-        var segunda = await repositorioB.ActualizarAsync(deB, TestContext.Current.CancellationToken);
+        (await repositorioA.ActualizarAsync(deA, [], TestContext.Current.CancellationToken)).EsExito.ShouldBeTrue();
+        var segunda = await repositorioB.ActualizarAsync(deB, [], TestContext.Current.CancellationToken);
 
         segunda.Error.ShouldBe(ErroresReserva.ConflictoConcurrencia);
 
@@ -292,7 +292,7 @@ public class RepositorioReservasTests(ServidorPostgres servidor) : BaseDeDatosTe
         var repositorio = new RepositorioReservas(db);
 
         await Should.ThrowAsync<InvalidOperationException>(
-            () => repositorio.ActualizarAsync(reserva, TestContext.Current.CancellationToken));
+            () => repositorio.ActualizarAsync(reserva, [], TestContext.Current.CancellationToken));
     }
 
     // --- Consulta de ocupaciones ------------------------------------------------------------
@@ -312,7 +312,7 @@ public class RepositorioReservasTests(ServidorPostgres servidor) : BaseDeDatosTe
             var repositorio = new RepositorioReservas(db);
             var aCancelar = (await repositorio.ObtenerAsync(cancelada.Id, TestContext.Current.CancellationToken))!;
             aCancelar.Cancelar();
-            await repositorio.ActualizarAsync(aCancelar, TestContext.Current.CancellationToken);
+            await repositorio.ActualizarAsync(aCancelar, [], TestContext.Current.CancellationToken);
         }
 
         await using var consulta = NuevoContexto();
@@ -357,7 +357,7 @@ public class RepositorioReservasTests(ServidorPostgres servidor) : BaseDeDatosTe
             var repositorio = new RepositorioReservas(db);
 
             await salida.Task;
-            return await repositorio.AgregarAsync(reserva, TestContext.Current.CancellationToken);
+            return await repositorio.AgregarAsync(reserva, [], TestContext.Current.CancellationToken);
         }).ToArray();
 
         salida.SetResult();

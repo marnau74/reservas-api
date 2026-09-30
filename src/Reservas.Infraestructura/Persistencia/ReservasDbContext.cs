@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 
 using Reservas.Aplicacion.Abstracciones;
+using Reservas.Dominio.Correos;
 using Reservas.Dominio.Gestion;
 using Reservas.Dominio.Locales;
 using Reservas.Dominio.Negocios;
@@ -31,6 +32,8 @@ public sealed class ReservasDbContext(DbContextOptions<ReservasDbContext> opcion
 
     public DbSet<ClaveIdempotenciaEntidad> ClavesIdempotencia => Set<ClaveIdempotenciaEntidad>();
 
+    public DbSet<CorreoPendiente> CorreosPendientes => Set<CorreoPendiente>();
+
     public DbSet<Usuario> Usuarios => Set<Usuario>();
 
     public DbSet<TokenRefresco> TokensRefresco => Set<TokenRefresco>();
@@ -60,7 +63,7 @@ public sealed class ReservasDbContext(DbContextOptions<ReservasDbContext> opcion
         modelBuilder.Entity<OcupacionMesaEntidad>().HasQueryFilter(e => NegocioActual == null || e.NegocioId == NegocioActual);
         modelBuilder.Entity<Usuario>().HasQueryFilter(e => NegocioActual == null || e.NegocioId == NegocioActual);
 
-        // Sin filtro, a propósito: «negocios» es público (se busca por su slug), los tokens de
+        // Sin filtro, a propósito: «correos_pendientes» lo vacía un proceso sin sesión de ningún negocio; «negocios» es público (se busca por su slug), los tokens de
         // renovación se buscan por su huella antes de saber de quién son, y las claves de
         // idempotencia las gestiona el middleware sin sesión.
     }

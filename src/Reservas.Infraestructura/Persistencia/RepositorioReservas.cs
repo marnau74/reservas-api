@@ -4,6 +4,7 @@ using Npgsql;
 
 using Reservas.Aplicacion.Abstracciones;
 using Reservas.Dominio.Comun;
+using Reservas.Dominio.Correos;
 using Reservas.Dominio.Disponibilidad;
 using Reservas.Dominio.Gestion;
 
@@ -16,9 +17,10 @@ namespace Reservas.Infraestructura.Persistencia;
 /// </summary>
 public sealed class RepositorioReservas(ReservasDbContext db) : IRepositorioReservas
 {
-    public async Task<Resultado> AgregarAsync(Reserva reserva, CancellationToken cancellationToken)
+    public async Task<Resultado> AgregarAsync(Reserva reserva, IReadOnlyCollection<CorreoPendiente> correos, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(reserva);
+        ArgumentNullException.ThrowIfNull(correos);
 
         // La estrategia de ejecución permite reintentar toda la operación si el proveedor está
         // configurado para reintentar fallos transitorios (Aspire lo hace); si no, se ejecuta una vez.
@@ -31,6 +33,7 @@ public sealed class RepositorioReservas(ReservasDbContext db) : IRepositorioRese
                 DescartarPendientes();
 
                 db.Reservas.Add(reserva);
+                db.CorreosPendientes.AddRange(correos);
                 db.OcupacionesMesa.AddRange(reserva.MesaIds.Select(mesaId => new OcupacionMesaEntidad(
                     reserva.Id,
                     mesaId,
@@ -62,9 +65,10 @@ public sealed class RepositorioReservas(ReservasDbContext db) : IRepositorioRese
     public Task<Reserva?> ObtenerPorCodigoAsync(string codigoGestion, CancellationToken cancellationToken) =>
         db.Reservas.FirstOrDefaultAsync(reserva => reserva.CodigoGestion == codigoGestion, cancellationToken);
 
-    public async Task<Resultado> ActualizarAsync(Reserva reserva, CancellationToken cancellationToken)
+    public async Task<Resultado> ActualizarAsync(Reserva reserva, IReadOnlyCollection<CorreoPendiente> correos, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(reserva);
+        ArgumentNullException.ThrowIfNull(correos);
 
         if (db.Entry(reserva).State == EntityState.Detached)
         {
@@ -81,6 +85,9 @@ public sealed class RepositorioReservas(ReservasDbContext db) : IRepositorioRese
         {
             ocupacion.Activa = reserva.OcupaMesas;
         }
+
+        // Los correos van en el mismo SaveChanges (una sola transacción) que el cambio de estado.
+        db.CorreosPendientes.AddRange(correos);
 
         try
         {
@@ -113,6 +120,56 @@ public sealed class RepositorioReservas(ReservasDbContext db) : IRepositorioRese
         return [.. candidatas
             .Where(reserva => reserva.Intervalo.Inicio >= tramo.Inicio && reserva.Intervalo.Inicio < tramo.Fin)
             .OrderBy(reserva => reserva.Intervalo.Inicio)];
+    }
+
+    public async Task<IReadOnlyList<Reserva>> ListarPendientesCaducadasAsync(DateTimeOffset ahora, int maximo, CancellationToken cancellationToken)
+    {
+        // La caducidad es la creación más el plazo: se filtra por la columna de creación, que sí se
+        // puede comparar en SQL.
+        var creadasAntesDe = ahora - Reserva.TiempoParaConfirmar;
+
+        return await db.Reservas
+            .Where(reserva => reserva.Estado == EstadoReserva.Pendiente && reserva.CreadaEn <= creadasAntesDe)
+            .OrderBy(reserva => reserva.CreadaEn)
+            .Take(maximo)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<Reserva>> ListarParaRecordatorioAsync(IntervaloTiempo tramo, int maximo, CancellationToken cancellationToken)
+    {
+        var rango = PeriodoPostgres.Desde(tramo);
+
+        // Como en la agenda: las mesas ocupadas llevan su rango indexado, y por ahí se encuentran
+        // las reservas que tocan el tramo; luego se afina por la hora de inicio.
+        var idsDelTramo = db.OcupacionesMesa
+            .Where(ocupacion => ocupacion.Activa && ocupacion.Periodo.Overlaps(rango))
+            .Select(ocupacion => ocupacion.ReservaId);
+
+        var candidatas = await db.Reservas
+            .Where(reserva => idsDelTramo.Contains(reserva.Id)
+                && reserva.Estado == EstadoReserva.Confirmada
+                && !reserva.RecordatorioProgramado)
+            .ToListAsync(cancellationToken);
+
+        return [.. candidatas
+            .Where(reserva => reserva.Intervalo.Inicio >= tramo.Inicio && reserva.Intervalo.Inicio <= tramo.Fin)
+            .OrderBy(reserva => reserva.Intervalo.Inicio)
+            .Take(maximo)];
+    }
+
+    public async Task<IReadOnlyList<Reserva>> ListarAnonimizablesAsync(DateTimeOffset creadasAntesDe, int maximo, CancellationToken cancellationToken)
+    {
+        var anonimo = DatosCliente.Anonimo.Email;
+
+        return await db.Reservas
+            .Where(reserva => reserva.CreadaEn < creadasAntesDe
+                && (reserva.Estado == EstadoReserva.Cancelada
+                    || reserva.Estado == EstadoReserva.Completada
+                    || reserva.Estado == EstadoReserva.NoPresentada)
+                && reserva.Cliente.Email != anonimo)
+            .OrderBy(reserva => reserva.CreadaEn)
+            .Take(maximo)
+            .ToListAsync(cancellationToken);
     }
 
     public async Task<IReadOnlyList<OcupacionMesa>> ObtenerOcupacionesAsync(
