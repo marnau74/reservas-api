@@ -4,7 +4,8 @@ API de reservas para bares y restaurantes, en .NET 10. Varios negocios en la mis
 disponibilidad por franjas, reservas con confirmación por correo y gestión del día a día
 del servicio.
 
-> En construcción.
+> En construcción: dominio, persistencia y API pública hechos; faltan la parte del personal,
+> los correos y el despliegue.
 
 ## El problema central
 
@@ -26,6 +27,42 @@ El **dominio**, que es donde vive la lógica de negocio y no depende de ningún 
 - **Cambios de hora:** el 29 de marzo no existen las 02:30 y el 25 de octubre ocurren dos
   veces; el dominio decide qué hacer y los tests lo demuestran
   ([ADR 0002](docs/adr/0002-tiempo-utc-y-hora-local.md)).
+
+## Probar la API
+
+Con el entorno local arrancado (`dotnet run --project src/Reservas.AppHost`) hay un negocio de
+demostración, ficticio, en `bar-la-plaza`. El puerto de la API lo indica el panel de Aspire
+(por defecto, 5052).
+
+```bash
+# 1. Qué horas hay libres el sábado para dos personas
+curl "http://localhost:5052/api/v1/negocios/bar-la-plaza/disponibilidad?fecha=2026-10-03&comensales=2"
+
+# 2. Reservar. Idempotency-Key es obligatoria: una clave única por operación
+curl -X POST http://localhost:5052/api/v1/negocios/bar-la-plaza/reservas \
+  -H "Content-Type: application/json" \
+  -H "Idempotency-Key: $(uuidgen)" \
+  -d '{"fecha":"2026-10-03","hora":"21:00","comensales":2,"cliente":{"nombre":"Ana Pérez","email":"ana@example.com"}}'
+# -> 201, con la reserva pendiente y su codigoGestion
+
+# 3. Confirmarla (o consultarla, o cancelarla) con ese código
+curl -X POST http://localhost:5052/api/v1/reservas/gestion/CODIGO/confirmar
+```
+
+| Método y ruta | Qué hace |
+|---|---|
+| `GET /api/v1/negocios/{slug}` | Datos públicos del negocio |
+| `GET /api/v1/negocios/{slug}/disponibilidad?fecha=&comensales=` | Horas libres de un día |
+| `POST /api/v1/negocios/{slug}/reservas` | Crea una reserva pendiente (exige `Idempotency-Key`) |
+| `GET /api/v1/reservas/gestion/{codigo}` | Consulta una reserva |
+| `POST /api/v1/reservas/gestion/{codigo}/confirmar` | La confirma (30 minutos de plazo) |
+| `POST /api/v1/reservas/gestion/{codigo}/cancelar` | La cancela y libera la mesa |
+
+Los errores son `application/problem+json` con un `code` estable (`reserva.mesa_ocupada`,
+`validacion.invalida`, `limite.excedido`…): los clientes deben fijarse en él, no en el texto.
+Repetir un `POST` con la misma clave devuelve la misma respuesta sin crear otra reserva
+([ADR 0004](docs/adr/0004-idempotencia-de-las-peticiones.md)). El contrato completo está en
+`/openapi/v1.json`.
 
 ## No reservar dos veces la misma mesa
 
