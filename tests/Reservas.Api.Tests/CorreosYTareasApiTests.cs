@@ -34,6 +34,9 @@ public partial class CorreosApiTests(ApiFlujoPorCorreo api) : PruebaPersonal(api
     [Fact]
     public async Task El_recorrido_del_cliente_solo_con_lo_que_le_llega_por_correo()
     {
+        // Los demás tests de la clase dejan correos sin procesar: se vacía la bandeja para contarlos bien.
+        await ProcesarCorreosAsync();
+
         var fecha = Api.SiguienteFecha();
         var email = NuevoEmail();
 
@@ -89,6 +92,9 @@ public partial class CorreosApiTests(ApiFlujoPorCorreo api) : PruebaPersonal(api
     {
         var fecha = Api.SiguienteFecha();
         var email = NuevoEmail();
+
+        // Los demás tests de la clase dejan correos sin procesar: se vacía la bandeja para que aquí solo haya uno.
+        await ProcesarCorreosAsync();
         Api.Enviador.Caido = true;
 
         using var creada = await ReservarAsync(ApiConBaseDeDatos.NegocioDosMesas, fecha, email: email);
