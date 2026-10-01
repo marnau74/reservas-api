@@ -43,6 +43,35 @@ public sealed class RepositorioUsuarios(ReservasDbContext db) : IRepositorioUsua
         }
     }
 
+    public async Task<bool> AnotarIntentoAsync(Usuario usuario, DateTimeOffset ahora, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(usuario);
+
+        var estrategia = db.Database.CreateExecutionStrategy();
+
+        return await estrategia.ExecuteAsync(async () =>
+        {
+            await using var transaccion = await db.Database.BeginTransactionAsync(cancellationToken);
+
+            // FOR UPDATE: otro intento sobre la misma cuenta espera aquí hasta que este confirme. Sin el bloqueo, dos
+            // intentos simultáneos leen el mismo contador, suman uno cada uno y guardan el mismo número: se pierde uno.
+            await db.Database.ExecuteSqlAsync($"SELECT 1 FROM usuarios WHERE id = {usuario.Id} FOR UPDATE", cancellationToken);
+            await db.Entry(usuario).ReloadAsync(cancellationToken);
+
+            if (!usuario.PuedeIniciarSesion(ahora))
+            {
+                await transaccion.CommitAsync(cancellationToken);
+                return false;
+            }
+
+            usuario.RegistrarIntento(ahora);
+            await db.SaveChangesAsync(cancellationToken);
+            await transaccion.CommitAsync(cancellationToken);
+
+            return true;
+        });
+    }
+
     public Task GuardarAsync(CancellationToken cancellationToken) => db.SaveChangesAsync(cancellationToken);
 }
 

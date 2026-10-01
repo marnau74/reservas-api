@@ -182,7 +182,7 @@ public class RepositoriosPersonalTests(ServidorPostgres servidor) : BaseDeDatosT
             var usuario = (await repositorio.ObtenerPorEmailAsync("ana@example.com", TestContext.Current.CancellationToken))!;
             for (var i = 0; i < Usuario.MaximoIntentosFallidos; i++)
             {
-                usuario.RegistrarFallo(Ahora);
+                usuario.RegistrarIntento(Ahora);
             }
 
             await repositorio.GuardarAsync(TestContext.Current.CancellationToken);

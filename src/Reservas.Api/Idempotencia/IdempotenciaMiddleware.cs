@@ -28,6 +28,12 @@ public sealed partial class IdempotenciaMiddleware(RequestDelegate siguiente)
     public const string Cabecera = "Idempotency-Key";
     public const string CabeceraRepetida = "Idempotency-Replayed";
 
+    /// <summary>
+    /// Donde un endpoint deja (en <see cref="HttpContext.Items"/>) la reserva a la que se refiere su respuesta, para que la
+    /// copia guardada se borre junto con los datos del cliente.
+    /// </summary>
+    public const string ClaveReserva = "idempotencia.reserva";
+
     public async Task InvokeAsync(HttpContext contexto, IAlmacenIdempotencia almacen, TimeProvider reloj)
     {
         ArgumentNullException.ThrowIfNull(contexto);
@@ -111,7 +117,12 @@ public sealed partial class IdempotenciaMiddleware(RequestDelegate siguiente)
 
             await almacen.CompletarAsync(
                 clave,
-                new RespuestaGuardada(estado, contexto.Response.ContentType, cuerpo, ubicacion.Length == 0 ? null : ubicacion),
+                new RespuestaGuardada(
+                    estado,
+                    contexto.Response.ContentType,
+                    cuerpo,
+                    ubicacion.Length == 0 ? null : ubicacion,
+                    contexto.Items[ClaveReserva] as Guid?),
                 reloj.GetUtcNow(),
                 CancellationToken.None);
         }

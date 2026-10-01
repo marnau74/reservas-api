@@ -61,6 +61,17 @@ sin correo. Ahora **no se devuelve** (`Publico:MostrarCodigoGestion` es `false` 
 cliente lo recibe en el enlace del correo, y confirmar la reserva demuestra que controla ese correo.
 Sin esto, cualquiera podría reservar con el correo de otra persona y confirmarlo él mismo.
 
+El código va en la ruta de la API (`/api/v1/reservas/gestion/{codigo}`), y las rutas acaban en las
+trazas: antes de enviarlas fuera, la API sustituye el código por `{codigo}` en `url.path`. Los
+registros de ASP.NET Core no escriben la ruta de cada petición; los del proxy que haya delante quedan
+fuera del alcance de la API.
+
+En la base de datos el código se guarda **tal cual**, no como una huella como los tokens de sesión,
+porque hace falta en claro para volver a ponerlo en el enlace del recordatorio, que sale un día antes de
+la reserva. Quien se llevara la base de datos ya tendría los datos de los clientes; con el código podría
+además cancelar sus reservas. Guardarlo cifrado exigiría gestionar una clave aparte y no evitaría eso
+si se lleva también la configuración: se ha preferido no añadir esa complejidad.
+
 ### Tareas programadas
 
 Un segundo servicio en segundo plano ejecuta cada minuto:
@@ -88,7 +99,10 @@ No se usa Quartz ni Hangfire: para cuatro tareas periódicas, un `BackgroundServ
 
 `DELETE /api/v1/reservas/gestion/{codigo}` borra los datos personales del cliente de esa reserva. Solo
 con la reserva ya no activa: no se puede borrar el contacto de quien va a venir. Repetirlo no es un
-error. El derecho de acceso lo cubre `GET` sobre la misma ruta, que ya devuelve todo lo que se guarda
+error. Se borran también, en la misma transacción, las copias que quedan fuera de la reserva: la
+respuesta guardada para los reintentos (`Idempotency-Key`), que lleva el nombre, el correo y quizá el
+código, y los correos de esa reserva, enviados o no. Lo mismo al anonimizar a los 24 meses. El
+derecho de acceso lo cubre `GET` sobre la misma ruta, que ya devuelve todo lo que se guarda
 del cliente. El plazo de conservación de 24 meses se cuenta desde que se hizo la reserva.
 
 ## Alternativas descartadas

@@ -532,6 +532,32 @@ public class MantenimientoProgramadoTests
     }
 
     [Fact]
+    public async Task Una_reserva_que_falla_siempre_no_deja_sin_procesar_a_las_que_vienen_detras()
+    {
+        // Como el repositorio real: tras un fallo se vuelve a consultar, y la que falló sigue saliendo la primera.
+        var reservas = Enumerable.Range(0, 5).Select(_ => Sembrar()).ToList();
+        var atascada = reservas[0];
+        var hechas = new HashSet<Guid>();
+
+        var total = await MantenimientoProgramado.ProcesarAsync(
+            _ => Task.FromResult<IReadOnlyList<Reserva>>([.. reservas.Where(r => !hechas.Contains(r.Id))]),
+            (reserva, _) =>
+            {
+                if (reserva == atascada)
+                {
+                    return Task.FromResult(Resultado.Fallo(ErroresReserva.ConflictoConcurrencia));
+                }
+
+                hechas.Add(reserva.Id);
+                return Task.FromResult(Resultado.Exito());
+            },
+            TestContext.Current.CancellationToken);
+
+        total.ShouldBe(4);
+        hechas.ShouldNotContain(atascada.Id);
+    }
+
+    [Fact]
     public async Task La_purga_borra_lo_anterior_al_plazo_de_cada_tabla()
     {
         await _mantenimiento.PurgarAsync(TestContext.Current.CancellationToken);

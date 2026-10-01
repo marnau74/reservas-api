@@ -14,7 +14,7 @@ namespace Reservas.Dominio.Personal;
 /// </remarks>
 public sealed class Usuario
 {
-    /// <summary>Fallos seguidos que bloquean la cuenta.</summary>
+    /// <summary>Intentos seguidos sin entrar que bloquean la cuenta.</summary>
     public const int MaximoIntentosFallidos = 5;
 
     /// <summary>Cuánto dura el bloqueo. Frena la fuerza bruta sin dejar a nadie fuera para siempre.</summary>
@@ -92,8 +92,12 @@ public sealed class Usuario
 
     public bool EstaBloqueado(DateTimeOffset ahora) => BloqueadoHasta is { } hasta && ahora < hasta;
 
-    /// <summary>Anota una contraseña incorrecta; al llegar al máximo, bloquea la cuenta un rato.</summary>
-    public void RegistrarFallo(DateTimeOffset ahora)
+    /// <summary>
+    /// Anota un intento de entrar; al llegar al máximo, bloquea la cuenta un rato. Se anota <b>antes</b> de comprobar la
+    /// contraseña: así cien intentos lanzados a la vez cuentan como cien, y no pueden pasar todos el control del bloqueo
+    /// antes de que se sume ninguno. Una entrada correcta borra la cuenta (<see cref="RegistrarAcceso"/>).
+    /// </summary>
+    public void RegistrarIntento(DateTimeOffset ahora)
     {
         IntentosFallidos++;
 

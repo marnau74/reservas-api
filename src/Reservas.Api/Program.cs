@@ -27,6 +27,9 @@ var builder = WebApplication.CreateBuilder(args);
 // OpenTelemetry, health checks, resiliencia y descubrimiento de servicios (Aspire).
 builder.AddServiceDefaults();
 
+// El código de gestión va en la ruta: en las trazas se sustituye por {codigo} (ver TrazasSinSecretos).
+builder.Services.AddTrazasSinSecretos();
+
 // PostgreSQL: la cadena de conexión «reservas» la inyecta Aspire en local y el entorno en
 // producción. El contexto es uno por petición (no un «pool» de contextos reutilizados) porque lleva
 // el negocio de la sesión, y un contexto reutilizado podría arrastrar el de la petición anterior.

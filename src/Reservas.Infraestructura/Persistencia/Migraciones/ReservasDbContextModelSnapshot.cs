@@ -496,6 +496,10 @@ namespace Reservas.Infraestructura.Persistencia.Migraciones
                         .HasColumnType("character varying(64)")
                         .HasColumnName("huella_peticion");
 
+                    b.Property<Guid?>("ReservaId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("reserva_id");
+
                     b.Property<string>("TipoContenido")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)")
@@ -511,6 +515,9 @@ namespace Reservas.Infraestructura.Persistencia.Migraciones
 
                     b.HasIndex("ActualizadaEn")
                         .HasDatabaseName("ix_claves_idempotencia_actualizada_en");
+
+                    b.HasIndex("ReservaId")
+                        .HasDatabaseName("ix_claves_idempotencia_reserva_id");
 
                     b.ToTable("claves_idempotencia", (string)null);
                 });

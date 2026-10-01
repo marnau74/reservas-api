@@ -55,6 +55,8 @@ public sealed class ReservasDbContext(DbContextOptions<ReservasDbContext> opcion
         // cuando la petición viene del personal de un negocio, EF añade «negocio_id = ese negocio»
         // a TODAS las consultas, también a las que se olviden de pedirlo. Un identificador de otro
         // negocio no da error de permisos: sencillamente no existe (404), sin revelar que está ahí.
+        // Sin negocio (null) no se filtra: es la parte pública, que pide el negocio por la URL, y las tareas en segundo
+        // plano. La parte privada nunca da null: sin sesión válida da un negocio inexistente y no se ve nada.
         modelBuilder.Entity<Sala>().HasQueryFilter(e => NegocioActual == null || EF.Property<Guid>(e, ConstantesPersistencia.NegocioId) == NegocioActual);
         modelBuilder.Entity<Mesa>().HasQueryFilter(e => NegocioActual == null || EF.Property<Guid>(e, ConstantesPersistencia.NegocioId) == NegocioActual);
         modelBuilder.Entity<Horario>().HasQueryFilter(e => NegocioActual == null || EF.Property<Guid>(e, ConstantesPersistencia.NegocioId) == NegocioActual);
@@ -63,8 +65,8 @@ public sealed class ReservasDbContext(DbContextOptions<ReservasDbContext> opcion
         modelBuilder.Entity<OcupacionMesaEntidad>().HasQueryFilter(e => NegocioActual == null || e.NegocioId == NegocioActual);
         modelBuilder.Entity<Usuario>().HasQueryFilter(e => NegocioActual == null || e.NegocioId == NegocioActual);
 
-        // Sin filtro, a propósito: «correos_pendientes» lo vacía un proceso sin sesión de ningún negocio; «negocios» es público (se busca por su slug), los tokens de
-        // renovación se buscan por su huella antes de saber de quién son, y las claves de
-        // idempotencia las gestiona el middleware sin sesión.
+        // Sin filtro, a propósito: «correos_pendientes» lo vacía un proceso sin sesión de ningún negocio; «negocios» es
+        // público (se busca por su slug), los tokens de renovación se buscan por su huella antes de saber de quién son,
+        // y las claves de idempotencia las gestiona el middleware sin sesión.
     }
 }

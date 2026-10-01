@@ -202,7 +202,7 @@ hacerlas hacer cola por mesa. Está explicado, con lo que no funcionó, en el
   importan se han comprobado rompiéndolas a propósito para ver que algún test falla.
 - **Arquitectura comprobada:** un proyecto de tests verifica la dirección de las dependencias entre
   capas y otras reglas de diseño (los endpoints no llegan a la base de datos, el dominio no expone
-  setters ni define excepciones…). Si alguien las rompe, falla la compilación de los tests.
+  setters ni define excepciones…). Si alguien las rompe, fallan los tests.
 - **Contrato de la API versionado:** el OpenAPI está guardado en el repositorio y un test lo compara
   con el que publica la API. Cualquier cambio de rutas o respuestas es visible en una revisión y no
   se cuela por accidente.

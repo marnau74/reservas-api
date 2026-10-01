@@ -43,4 +43,8 @@ public sealed record ResultadoAdquisicion(EstadoAdquisicion Estado, RespuestaGua
 /// <param name="TipoContenido">Tipo de contenido, o <c>null</c> si no hay cuerpo.</param>
 /// <param name="Cuerpo">Cuerpo de la respuesta.</param>
 /// <param name="Ubicacion">Cabecera <c>Location</c>, si la había.</param>
-public sealed record RespuestaGuardada(int EstadoHttp, string? TipoContenido, string Cuerpo, string? Ubicacion);
+/// <param name="ReservaId">
+/// La reserva a la que se refiere la respuesta, si se refiere a una. La respuesta lleva datos del cliente (y el código de
+/// gestión): cuando se borran los datos de esa reserva, se borra también esta copia.
+/// </param>
+public sealed record RespuestaGuardada(int EstadoHttp, string? TipoContenido, string Cuerpo, string? Ubicacion, Guid? ReservaId = null);

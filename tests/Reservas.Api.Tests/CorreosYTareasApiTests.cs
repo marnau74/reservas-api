@@ -203,6 +203,32 @@ public class SupresionDeDatosTests(ApiConPersonal api) : PruebaPersonal(api), IC
     }
 
     [Fact]
+    public async Task Al_borrar_los_datos_se_borran_tambien_sus_copias_en_la_respuesta_guardada_y_en_los_correos()
+    {
+        // La respuesta guardada para los reintentos (Idempotency-Key) y los correos llevan el nombre, el correo y el código:
+        // si solo se borrara la reserva, los datos seguirían en la base de datos hasta la purga (24 horas y 30 días).
+        var email = NuevoEmail();
+        var codigo = await ReservarYCodigoAsync(email);
+        (await GestionarAsync(codigo, "cancelar")).Dispose();
+
+        Guid reservaId;
+        await using (var antes = Api.NuevoContexto())
+        {
+            reservaId = await antes.Reservas.Where(r => r.CodigoGestion == codigo).Select(r => r.Id).SingleAsync(Cancelacion);
+            (await antes.ClavesIdempotencia.CountAsync(c => c.ReservaId == reservaId, Cancelacion)).ShouldBe(1, "la respuesta guardada sabe de qué reserva es");
+            (await antes.CorreosPendientes.CountAsync(c => c.ReservaId == reservaId, Cancelacion)).ShouldBeGreaterThan(0);
+        }
+
+        using var borrada = await GestionarAsync(codigo, metodo: HttpMethod.Delete);
+        borrada.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+
+        await using var db = Api.NuevoContexto();
+        (await db.ClavesIdempotencia.CountAsync(c => c.ReservaId == reservaId, Cancelacion)).ShouldBe(0);
+        (await db.ClavesIdempotencia.CountAsync(c => c.Cuerpo!.Contains(email), Cancelacion)).ShouldBe(0);
+        (await db.CorreosPendientes.CountAsync(c => c.ReservaId == reservaId || c.Destinatario == email, Cancelacion)).ShouldBe(0);
+    }
+
+    [Fact]
     public async Task Pedirlo_dos_veces_no_es_un_error_y_un_codigo_desconocido_es_un_404()
     {
         var codigo = await ReservarYCodigoAsync(NuevoEmail());

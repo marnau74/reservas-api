@@ -88,6 +88,7 @@ public sealed class AlmacenIdempotencia(ReservasDbContext db) : IAlmacenIdempote
                     .SetProperty(c => c.TipoContenido, respuesta.TipoContenido)
                     .SetProperty(c => c.Cuerpo, respuesta.Cuerpo)
                     .SetProperty(c => c.Ubicacion, respuesta.Ubicacion)
+                    .SetProperty(c => c.ReservaId, respuesta.ReservaId)
                     .SetProperty(c => c.ActualizadaEn, ahora),
                 cancellationToken);
     }
