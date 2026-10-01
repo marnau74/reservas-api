@@ -20,6 +20,10 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 ### Cambiado
 - Los listados de la parte privada también tienen límite de peticiones (antes solo las escrituras).
 
+### Seguridad
+- Las acciones de GitHub van fijadas por SHA (con la versión en un comentario) en lugar de por
+  etiqueta, que su autor puede mover; Dependabot las actualiza agrupadas.
+
 ## [1.0.0] - 2026-09-30
 
 ### Añadido
