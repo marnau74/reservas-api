@@ -20,7 +20,9 @@ public sealed class IniciarSesion(
 
         // Un correo desconocido, una cuenta bloqueada o desactivada y una contraseña incorrecta se
         // responden igual y tardan parecido: quien lo prueba no averigua qué correos existen.
-        if (usuario is null || !usuario.PuedeIniciarSesion(ahora))
+        // El intento se anota ANTES de comprobar la contraseña y con la cuenta bloqueada para los demás: si se anotara
+        // después, cien intentos simultáneos pasarían todos el control del bloqueo antes de que se sumase ninguno.
+        if (usuario is null || !await usuarios.AnotarIntentoAsync(usuario, ahora, cancellationToken))
         {
             hasher.Verificar(usuario?.HashContrasena ?? hasher.HashFalso, contrasena);
             return Resultado.Fallo<SesionIniciada>(ErroresAplicacion.CredencialesInvalidas);
@@ -28,11 +30,10 @@ public sealed class IniciarSesion(
 
         if (!hasher.Verificar(usuario.HashContrasena, contrasena))
         {
-            usuario.RegistrarFallo(ahora);
-            await usuarios.GuardarAsync(cancellationToken);
             return Resultado.Fallo<SesionIniciada>(ErroresAplicacion.CredencialesInvalidas);
         }
 
+        // La contraseña era buena: el intento anotado no cuenta como fallo.
         usuario.RegistrarAcceso();
 
         return Resultado.Exito(await EmitirSesionAsync(usuario, tokens, emisor, opciones, ahora, cancellationToken));

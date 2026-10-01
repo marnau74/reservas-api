@@ -30,7 +30,11 @@ mesas y horarios y da de alta a sus compañeros. Hay dos riesgos serios:
   con versión). No se usa Identity completo (`UserManager`, `IdentityDbContext`): trae una docena de
   tablas y conceptos (reclamaciones, inicios externos, tokens de teléfono) que no se usan, y
   ligaría el dominio a un framework. El bloqueo de cuentas es una regla del dominio (`Usuario`):
-  5 fallos seguidos bloquean 15 minutos.
+  5 intentos seguidos sin entrar bloquean 15 minutos. Cada intento se anota **antes** de comprobar la
+  contraseña, con la fila de la cuenta bloqueada (`SELECT … FOR UPDATE`) hasta guardarlo: si se anotara
+  después, los intentos lanzados a la vez leerían el mismo contador y se perderían, y todos pasarían el
+  control del bloqueo antes de que se sumase ninguno. Una entrada correcta borra la cuenta. Un test lanza
+  veinte contraseñas incorrectas a la vez y comprueba que la cuenta queda bloqueada.
 - **No se revela nada al fallar.** Correo desconocido, contraseña incorrecta, cuenta bloqueada y cuenta
   desactivada dan exactamente la misma respuesta, y en todos los casos se calcula una huella de
   contraseña (real o falsa) para que tarden parecido.
@@ -63,6 +67,9 @@ Lo que se decide con reglas concretas:
   que pedir los datos de otro.
 - **El contexto de negocio solo existe en `/api/v1/gestion`.** En las rutas públicas se ignora aunque
   venga un token, porque allí el negocio lo indica la URL (`/negocios/{slug}`).
+- **En `/api/v1/gestion` el filtro falla cerrado.** Sin una sesión válida, el contexto es un negocio que
+  no existe y las consultas no encuentran nada; nunca «sin filtro», que dejaría ver los datos de todos
+  si una ruta privada llegara a ejecutarse sin sesión por un error de configuración.
 - **Un identificador de otro negocio da 404, no 403.** No se revela ni que exista.
 - **El correo es único en toda la base de datos**, no solo dentro de un negocio: es el nombre de
   usuario y el inicio de sesión ocurre antes de saber a qué negocio pertenece quien entra. Lo

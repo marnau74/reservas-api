@@ -91,7 +91,26 @@ public sealed class RepositorioReservas(ReservasDbContext db) : IRepositorioRese
 
         try
         {
-            await db.SaveChangesAsync(cancellationToken);
+            if (!reserva.Cliente.EstaAnonimizado)
+            {
+                await db.SaveChangesAsync(cancellationToken);
+                return Resultado.Exito();
+            }
+
+            // Borrar los datos del cliente borra también las copias que quedan de ellos fuera de la reserva: la respuesta
+            // guardada para los reintentos (lleva su nombre, su correo y quizá el código) y sus correos, enviados o no.
+            // Todo en la misma transacción: o se borra todo o nada.
+            var estrategia = db.Database.CreateExecutionStrategy();
+            await estrategia.ExecuteAsync(async () =>
+            {
+                await using var transaccion = await db.Database.BeginTransactionAsync(cancellationToken);
+                await db.SaveChangesAsync(acceptAllChangesOnSuccess: false, cancellationToken);
+                await db.ClavesIdempotencia.Where(clave => clave.ReservaId == reserva.Id).ExecuteDeleteAsync(cancellationToken);
+                await db.CorreosPendientes.Where(correo => correo.ReservaId == reserva.Id).ExecuteDeleteAsync(cancellationToken);
+                await transaccion.CommitAsync(cancellationToken);
+            });
+
+            db.ChangeTracker.AcceptAllChanges();
             return Resultado.Exito();
         }
         catch (DbUpdateConcurrencyException)

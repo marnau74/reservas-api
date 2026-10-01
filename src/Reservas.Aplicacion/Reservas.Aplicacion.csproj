@@ -8,6 +8,11 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Para probar el reparto por lotes del mantenimiento sin una base de datos. -->
+    <InternalsVisibleTo Include="Reservas.Aplicacion.Tests" />
+  </ItemGroup>
+
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>

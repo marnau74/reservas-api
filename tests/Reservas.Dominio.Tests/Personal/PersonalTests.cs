@@ -48,11 +48,11 @@ public class UsuarioTests
 
         for (var i = 0; i < Usuario.MaximoIntentosFallidos - 1; i++)
         {
-            usuario.RegistrarFallo(Ahora);
+            usuario.RegistrarIntento(Ahora);
             usuario.EstaBloqueado(Ahora).ShouldBeFalse();
         }
 
-        usuario.RegistrarFallo(Ahora);
+        usuario.RegistrarIntento(Ahora);
 
         usuario.EstaBloqueado(Ahora).ShouldBeTrue();
         usuario.PuedeIniciarSesion(Ahora).ShouldBeFalse();
@@ -66,7 +66,7 @@ public class UsuarioTests
         var usuario = Nuevo();
         for (var i = 0; i < Usuario.MaximoIntentosFallidos; i++)
         {
-            usuario.RegistrarFallo(Ahora);
+            usuario.RegistrarIntento(Ahora);
         }
 
         usuario.IntentosFallidos.ShouldBe(0);
@@ -76,8 +76,8 @@ public class UsuarioTests
     public void Una_entrada_correcta_borra_los_fallos_anteriores()
     {
         var usuario = Nuevo();
-        usuario.RegistrarFallo(Ahora);
-        usuario.RegistrarFallo(Ahora);
+        usuario.RegistrarIntento(Ahora);
+        usuario.RegistrarIntento(Ahora);
 
         usuario.RegistrarAcceso();
 

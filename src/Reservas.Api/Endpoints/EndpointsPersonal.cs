@@ -224,6 +224,7 @@ public static class EndpointsPersonal
         ClaimsPrincipal usuario,
         IValidator<SolicitudReservaDto> validador,
         GestionReservasPersonal gestion,
+        HttpContext contexto,
         CancellationToken cancellationToken)
     {
         var validacion = await validador.ValidateAsync(solicitud, cancellationToken);
@@ -252,9 +253,15 @@ public static class EndpointsPersonal
                 solicitud.Cliente.Telefono),
             cancellationToken);
 
-        return resultado.EsFallo
-            ? ProblemasApi.Desde(resultado.Error)
-            : Results.Json(MapeoGestion.AReserva(resultado.Valor), statusCode: StatusCodes.Status201Created);
+        if (resultado.EsFallo)
+        {
+            return ProblemasApi.Desde(resultado.Error);
+        }
+
+        // La respuesta lleva los datos del cliente: su copia para reintentos se borra con ellos.
+        contexto.Items[IdempotenciaMiddleware.ClaveReserva] = resultado.Valor.Reserva.Id;
+
+        return Results.Json(MapeoGestion.AReserva(resultado.Valor), statusCode: StatusCodes.Status201Created);
     }
 
     // --- Local (encargado) ----------------------------------------------------------------------
@@ -263,6 +270,7 @@ public static class EndpointsPersonal
     {
         grupo.MapGet("/salas", (ClaimsPrincipal usuario, ServicioLocal local, CancellationToken ct) =>
                 ConSesion(usuario, async sesion => Results.Ok((await local.ListarSalasAsync(sesion.NegocioId, ct)).Select(MapeoGestion.ASala))))
+            .RequireRateLimiting(LimitesPeticiones.Lectura)
             .WithName("ListarSalas").WithSummary("Salas del negocio.").Produces<SalaRespuesta[]>();
 
         grupo.MapPost("/salas", CrearSalaAsync)
@@ -278,6 +286,7 @@ public static class EndpointsPersonal
 
         grupo.MapGet("/mesas", (ClaimsPrincipal usuario, ServicioLocal local, CancellationToken ct) =>
                 ConSesion(usuario, async sesion => Results.Ok((await local.ListarMesasAsync(sesion.NegocioId, ct)).Select(MapeoGestion.AMesa))))
+            .RequireRateLimiting(LimitesPeticiones.Lectura)
             .WithName("ListarMesas").WithSummary("Mesas del negocio.").Produces<MesaRespuesta[]>();
 
         grupo.MapPost("/mesas", CrearMesaAsync)
@@ -294,6 +303,7 @@ public static class EndpointsPersonal
 
         grupo.MapGet("/horarios", (ClaimsPrincipal usuario, ServicioLocal local, CancellationToken ct) =>
                 ConSesion(usuario, async sesion => Results.Ok((await local.ListarHorariosAsync(sesion.NegocioId, ct)).Select(MapeoGestion.AHorario))))
+            .RequireRateLimiting(LimitesPeticiones.Lectura)
             .WithName("ListarHorarios").WithSummary("Horarios de reserva del negocio.").Produces<HorarioRespuesta[]>();
 
         grupo.MapPost("/horarios", CrearHorarioAsync)
@@ -309,6 +319,7 @@ public static class EndpointsPersonal
 
         grupo.MapGet("/cierres", (ClaimsPrincipal usuario, ServicioLocal local, CancellationToken ct) =>
                 ConSesion(usuario, async sesion => Results.Ok((await local.ListarCierresAsync(sesion.NegocioId, ct)).Select(MapeoGestion.ACierre))))
+            .RequireRateLimiting(LimitesPeticiones.Lectura)
             .WithName("ListarCierres").WithSummary("Días de cierre del negocio.").Produces<CierreRespuesta[]>();
 
         grupo.MapPost("/cierres", CrearCierreAsync)
@@ -377,6 +388,7 @@ public static class EndpointsPersonal
     {
         grupo.MapGet(string.Empty, async (ClaimsPrincipal usuario, ServicioUsuarios servicio, CancellationToken ct) =>
                 await ConSesion(usuario, async sesion => Results.Ok((await servicio.ListarAsync(sesion, ct)).Select(MapeoGestion.AUsuario))))
+            .RequireRateLimiting(LimitesPeticiones.Lectura)
             .WithName("ListarUsuarios").WithSummary("Personas que trabajan en el negocio.").Produces<UsuarioRespuesta[]>();
 
         grupo.MapPost(string.Empty, CrearUsuarioAsync)

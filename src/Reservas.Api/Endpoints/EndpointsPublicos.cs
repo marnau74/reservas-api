@@ -138,6 +138,7 @@ public static class EndpointsPublicos
         IValidator<SolicitudReservaDto> validador,
         CrearReserva casoDeUso,
         IOptions<OpcionesPublicas> opciones,
+        HttpContext contexto,
         CancellationToken cancellationToken)
     {
         var validacion = await validador.ValidateAsync(solicitud, cancellationToken);
@@ -164,6 +165,9 @@ public static class EndpointsPublicos
         {
             return ProblemasApi.Desde(resultado.Error);
         }
+
+        // La respuesta lleva los datos del cliente y quizá el código: su copia para reintentos se borra con ellos.
+        contexto.Items[IdempotenciaMiddleware.ClaveReserva] = resultado.Valor.Reserva.Id;
 
         var mostrarCodigo = opciones.Value.MostrarCodigoGestion;
         var respuesta = Mapeo.AReserva(resultado.Valor, mostrarCodigo);

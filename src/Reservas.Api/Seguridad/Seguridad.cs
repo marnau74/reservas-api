@@ -84,8 +84,16 @@ public sealed class EmisorJwt(OpcionesJwt opciones) : IEmisorTokensAcceso
 /// El negocio de la petición, sacado de la sesión. Solo cuenta en las rutas de <c>/api/v1/gestion</c>:
 /// en las públicas se ignora aunque venga un token, porque allí el negocio lo indica la URL.
 /// </summary>
+/// <remarks>
+/// En la parte privada falla cerrado: sin una sesión válida devuelve un negocio que no existe, y el filtro global no
+/// encuentra nada. Devolver «ningún negocio» quitaría el filtro y dejaría ver los datos de todos si alguna ruta privada
+/// llegara a ejecutarse sin sesión por un error de configuración.
+/// </remarks>
 public sealed class ContextoNegocioHttp(IHttpContextAccessor accesor) : IContextoNegocio
 {
+    /// <summary>El negocio de una petición privada sin sesión válida: no existe, así que no se ve ningún dato.</summary>
+    public static readonly Guid SinNegocio = Guid.Empty;
+
     public Guid? NegocioId
     {
         get
@@ -97,7 +105,7 @@ public sealed class ContextoNegocioHttp(IHttpContextAccessor accesor) : IContext
                 return null;
             }
 
-            return SesionActual.Leer(http.User)?.NegocioId;
+            return SesionActual.Leer(http.User)?.NegocioId ?? SinNegocio;
         }
     }
 }

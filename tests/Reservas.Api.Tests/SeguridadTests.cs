@@ -76,14 +76,14 @@ public class SeguridadTests(ApiConPersonal api) : PruebaPersonal(api), IClassFix
     }
 
     [Fact]
-    public void Los_endpoints_que_escriben_tienen_limite_de_peticiones()
+    public void Todos_los_endpoints_tienen_limite_de_peticiones()
     {
+        // También los que leen: una lectura de la parte privada con una sesión robada no debe poder repetirse sin freno.
         var sinLimite = Endpoints()
-            .Where(e => e.Metadata.GetMetadata<HttpMethodMetadata>()!.HttpMethods.Any(m => m is "POST" or "DELETE"))
             .Where(e => e.Metadata.GetMetadata<Microsoft.AspNetCore.RateLimiting.EnableRateLimitingAttribute>() is null)
             .Select(Ruta)
             .ToList();
 
-        sinLimite.ShouldBeEmpty("estos endpoints que escriben no tienen límite de peticiones");
+        sinLimite.ShouldBeEmpty("estos endpoints no tienen límite de peticiones");
     }
 }

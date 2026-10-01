@@ -5,6 +5,23 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ## [Sin publicar]
 
+### Corregido
+- El bloqueo tras cinco contraseñas incorrectas se podía saltar con intentos simultáneos: cada uno leía
+  el mismo contador y se perdían. Ahora cada intento se anota antes de comprobar la contraseña, con la
+  fila de la cuenta bloqueada hasta guardarlo.
+- Borrar los datos de un cliente (o anonimizarlos a los 24 meses) dejaba copias en la respuesta guardada
+  para los reintentos y en los correos de la reserva. Ahora se borran en la misma transacción.
+- El código de gestión de las reservas aparecía en las trazas (`url.path`): ahora se sustituye por
+  `{codigo}`.
+- En la parte privada, una petición sin sesión válida dejaba las consultas sin filtro de negocio. Ahora
+  el filtro falla cerrado: no se ve ningún negocio.
+- Una reserva que fallara siempre en el mantenimiento dejaba sin procesar a las que venían detrás.
+
+### Cambiado
+- Los listados de la parte privada también tienen límite de peticiones (antes solo las escrituras).
+
+## [1.0.0] - 2026-09-30
+
 ### Añadido
 
 **Base**
@@ -106,3 +123,6 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 ### Corregido
 - Las políticas de reserva por defecto eran un objeto compartido y EF Core no admite que dos
   negocios compartan uno: ahora cada negocio tiene su propia copia.
+
+[Sin publicar]: https://github.com/marnau74/reservas-api/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/marnau74/reservas-api/releases/tag/v1.0.0

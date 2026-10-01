@@ -26,6 +26,9 @@ public sealed class ClaveIdempotenciaEntidad
 
     public string? Ubicacion { get; set; }
 
+    /// <summary>La reserva a la que se refiere la respuesta guardada: al borrar los datos del cliente se borra también esta copia.</summary>
+    public Guid? ReservaId { get; set; }
+
     public DateTimeOffset CreadaEn { get; }
 
     /// <summary>Última vez que se tocó: una petición en curso que lleva demasiado sin cambios se da por abandonada.</summary>

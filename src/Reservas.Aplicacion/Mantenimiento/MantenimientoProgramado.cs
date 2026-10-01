@@ -117,40 +117,35 @@ public sealed class MantenimientoProgramado(
     /// <summary>
     /// Aplica una operación a lotes de reservas hasta que no quedan. Si una falla (normalmente porque
     /// otra instancia la cambió antes), se vuelve a consultar, porque tras un conflicto el repositorio
-    /// descarta lo que tenía cargado. Si una pasada entera no avanza, se para: ya volverá a intentarse
-    /// en la siguiente ejecución.
+    /// descarta lo que tenía cargado; la que falló se salta en el resto de esta ejecución, para que una
+    /// que falle siempre no deje sin procesar a todas las que vienen detrás (ya volverá a intentarse en la
+    /// siguiente ejecución). Cada pasada procesa alguna o aparta una más, así que siempre termina.
     /// </summary>
-    private static async Task<int> ProcesarAsync(
+    internal static async Task<int> ProcesarAsync(
         Func<CancellationToken, Task<IReadOnlyList<Reserva>>> listar,
         Func<Reserva, CancellationToken, Task<Resultado>> aplicar,
         CancellationToken cancellationToken)
     {
         var total = 0;
+        var fallidas = new HashSet<Guid>();
 
         for (var pasada = 0; pasada < MaximoPasadas; pasada++)
         {
-            var lote = await listar(cancellationToken);
+            var lote = (await listar(cancellationToken)).Where(reserva => !fallidas.Contains(reserva.Id)).ToList();
             if (lote.Count == 0)
             {
                 break;
             }
 
-            var avanzo = false;
-
             foreach (var reserva in lote)
             {
                 if ((await aplicar(reserva, cancellationToken)).EsFallo)
                 {
+                    fallidas.Add(reserva.Id);
                     break;
                 }
 
                 total++;
-                avanzo = true;
-            }
-
-            if (!avanzo)
-            {
-                break;
             }
         }
 

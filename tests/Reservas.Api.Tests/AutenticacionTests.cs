@@ -112,6 +112,29 @@ public class AutenticacionTests(ApiConPersonal api) : PruebaPersonal(api), IClas
     }
 
     [Fact]
+    public async Task Veinte_contrasenas_incorrectas_a_la_vez_cuentan_todas_y_bloquean_la_cuenta()
+    {
+        // Antes, cada intento leía el contador, le sumaba uno y lo guardaba: lanzados a la vez, leían todos el mismo
+        // número y se perdían casi todos, así que la cuenta no llegaba a bloquearse y se podía probar sin límite.
+        var usuario = await NuevoUsuarioAsync();
+
+        var intentos = Enumerable.Range(0, 20).Select(async _ =>
+        {
+            using var fallo = await LoginAsync(usuario.Email, "Incorrecta-123456");
+            return fallo.StatusCode;
+        });
+
+        (await Task.WhenAll(intentos)).ShouldAllBe(estado => estado == HttpStatusCode.Unauthorized);
+
+        using var correcta = await LoginAsync(usuario.Email);
+        correcta.StatusCode.ShouldBe(HttpStatusCode.Unauthorized, "con veinte intentos fallidos la cuenta tiene que estar bloqueada");
+
+        await using var db = Api.NuevoContexto();
+        var guardado = await db.Usuarios.IgnoreQueryFilters().SingleAsync(u => u.Id == usuario.Id, Cancelacion);
+        guardado.EstaBloqueado(Api.Reloj.GetUtcNow()).ShouldBeTrue();
+    }
+
+    [Fact]
     public async Task Una_entrada_correcta_borra_los_fallos_y_no_se_acumulan_entre_sesiones()
     {
         var usuario = await NuevoUsuarioAsync();

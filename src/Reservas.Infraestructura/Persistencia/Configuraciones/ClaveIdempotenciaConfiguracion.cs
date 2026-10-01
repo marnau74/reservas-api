@@ -20,5 +20,8 @@ internal sealed class ClaveIdempotenciaConfiguracion : IEntityTypeConfiguration<
 
         // Para purgar las claves antiguas sin recorrer toda la tabla.
         builder.HasIndex(c => c.ActualizadaEn);
+
+        // Para borrar la copia de una respuesta cuando se borran los datos del cliente de su reserva.
+        builder.HasIndex(c => c.ReservaId);
     }
 }
