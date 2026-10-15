@@ -228,6 +228,7 @@ descartadas y lo que se pierde al elegir.
 | [0005](docs/adr/0005-sesion-del-personal-y-aislamiento-por-negocio.md) | Sesión del personal y aislamiento entre negocios |
 | [0006](docs/adr/0006-correos-con-bandeja-de-salida-y-tareas-programadas.md) | Correos con bandeja de salida y tareas programadas |
 | [0007](docs/adr/0007-despliegue-de-la-demo.md) | Despliegue de la demo |
+| [0008](docs/adr/0008-plano-de-despliegue-en-azure.md) | Plano de despliegue en Azure con Bicep |
 
 ## Demo y despliegue
 
@@ -235,6 +236,12 @@ La API se despliega como una imagen de Docker (`Dockerfile`). El repositorio inc
 [Render](https://render.com) con la base de datos en [Neon](https://neon.tech)
 (`render.yaml`) y una guía paso a paso con todas las variables en [`docs/despliegue.md`](docs/despliegue.md).
 La demo usa un negocio, unas cuentas y unas reservas ficticios.
+
+Para un entorno de empresa hay además un plano de despliegue en **Azure** descrito en Bicep
+([`infra/azure`](infra/azure/main.bicep)): Container Apps con escala a cero, PostgreSQL Flexible
+Server, Log Analytics y una alerta de presupuesto, desplegado desde GitHub Actions con OIDC (sin
+credenciales de Azure guardadas). El CI lo valida en cada cambio y solo se despliega a mano; los
+pasos están en [`docs/despliegue-azure.md`](docs/despliegue-azure.md).
 
 ## Stack
 

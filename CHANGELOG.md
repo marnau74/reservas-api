@@ -5,6 +5,11 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/); v
 
 ## [Sin publicar]
 
+### Añadido
+- Plano de despliegue en Azure en Bicep (`infra/azure`): Container Apps con escala a cero,
+  PostgreSQL Flexible Server 17 con `btree_gist` autorizada, Log Analytics y presupuesto con avisos.
+  Workflow que lo valida en cada cambio y lo despliega a mano con OIDC (ADR 0008).
+
 ### Corregido
 - El bloqueo tras cinco contraseñas incorrectas se podía saltar con intentos simultáneos: cada uno leía
   el mismo contador y se perdían. Ahora cada intento se anota antes de comprobar la contraseña, con la
