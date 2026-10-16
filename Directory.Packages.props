@@ -2,6 +2,8 @@
   <!-- Versiones de NuGet en un único sitio (gestión central de paquetes). -->
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <!-- Las versiones de aquí también fijan las dependencias indirectas (para subir las que tienen avisos) -->
+    <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
   </PropertyGroup>
   <ItemGroup Label="Aplicación">
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.12" />
@@ -30,6 +32,12 @@
     <PackageVersion Include="Microsoft.Extensions.Identity.Core" Version="10.0.12" />
     <PackageVersion Include="MailKit" Version="4.18.1" />
     <PackageVersion Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" Version="13.6.0" />
+  </ItemGroup>
+  <ItemGroup Label="Dependencias indirectas con avisos de seguridad">
+    <!-- Llega con MailKit (MimeKit); la 10.0.0 tiene los avisos GHSA-2fmv-rv2c-59x7 y GHSA-846f-f764-76mx -->
+    <PackageVersion Include="System.Security.Cryptography.Pkcs" Version="10.0.13" />
+    <!-- Llega con Aspire.Hosting (solo el AppHost de desarrollo); la 2.5.302 tiene el aviso GHSA-qhrr-8q5h-9q3h -->
+    <PackageVersion Include="MessagePack" Version="2.5.303" />
   </ItemGroup>
   <ItemGroup Label="Tests">
     <PackageVersion Include="Testcontainers.PostgreSql" Version="4.15.0" />
