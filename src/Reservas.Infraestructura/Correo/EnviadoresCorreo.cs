@@ -1,3 +1,4 @@
+using MailKit;
 using MailKit.Net.Smtp;
 using MailKit.Security;
 
@@ -59,7 +60,7 @@ public sealed class EnviadorSmtp(OpcionesSmtp opciones) : IEnviadorCorreo
             await cliente.AuthenticateAsync(opciones.Usuario, opciones.Contrasena ?? string.Empty, cancellationToken);
         }
 
-        await cliente.SendAsync(correo, cancellationToken);
+        await cliente.SendAsync(new SendRequest(correo), cancellationToken);
         await cliente.DisconnectAsync(quit: true, cancellationToken);
     }
 }
